@@ -1,0 +1,34 @@
+# arona 转发器 —— 一台有固定出口 IP 的机器上跑它，AstrBot 那侧就永远不怕换 IP
+#
+#   cd deploy/docker
+#   cp .env.example .env && vi .env
+#   mkdir -p secrets && printf '%s\n' '你的QQ号:密钥' > secrets/arona_token
+#   docker compose up -d
+services:
+  arona-proxy:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: arona-proxy:latest
+    container_name: arona-proxy
+    restart: unless-stopped
+    ports:
+      - "${PROXY_PORT:-8443}:8443"
+    environment:
+      PROXY_PORT: "8443"
+      PROXY_KEY: "${PROXY_KEY:?请在 .env 里设置 PROXY_KEY，用 openssl rand -hex 16 生成}"
+      PUBLIC_IP: "${PUBLIC_IP:-}"
+      CERT_CN: "${CERT_CN:-arona-proxy}"
+      ARONA_TOKEN_FILE: /run/secrets/arona_token
+      PROXY_CERT: /app/certs/server.crt
+      PROXY_KEYFILE: /app/certs/server.key
+    volumes:
+      - ./secrets/arona_token:/run/secrets/arona_token:ro
+      - ./certs:/app/certs
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

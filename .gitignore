@@ -30,3 +30,8 @@ Thumbs.db
 
 # 构建产物与历史存档（如需保留请放 Release）
 *.zip
+
+# 转发器容器：token 与证书不进仓库
+deploy/docker/secrets/
+deploy/docker/certs/
+deploy/docker/.env

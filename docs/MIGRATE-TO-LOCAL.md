@@ -141,9 +141,10 @@ PY
 
 再在群里发一次 `/ba 大决战` 和 `/ba 借 若藻`，确认链路。
 
-### 5. 移交云服务器前清理
+### 5. 旧转发机清理（本次已随服务器重置，留作参考）
 
-这台上原本存着 arona token、转发密钥和自签证书。**在交出去之前**：
+原转发机已整机重置，上面的 token / 密钥 / 证书自然失效，**这一步本次可跳过**。
+以后再拆一台转发机时，按下面清理：
 
 ```bash
 systemctl disable --now arona-proxy
@@ -164,6 +165,10 @@ systemctl daemon-reload
 | `4002` | 未声明数据来源 | 到 arona.icu 补「数据来源备注」 |
 | `4007` | token 无效，或已绑定到别的 IP | 换发 token；确认出口 IP 与申请时一致 |
 | `200` | 正常 | —— |
+
+> 如果之后想再把转发捡回来，仓库里有现成的容器化方案：
+> [deploy/docker](../deploy/docker/README.md) —— `docker compose up -d` 即可起一个自签证书、
+> 挂载 token、带健康检查的转发器，不用手动装 systemd 单元。
 
 ## 六、家宽动态 IP 怎么办
 
