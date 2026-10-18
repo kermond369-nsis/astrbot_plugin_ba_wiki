@@ -151,7 +151,7 @@ astrbot_plugin_ba_wiki/
 |---|---|---|
 | [SchaleDB](https://schaledb.com) | 技能数值、七语言名称 | 权威数值源，社区维护；按 ETag 增量刷新 |
 | [kivo.wiki](https://kivo.wiki) | 通用中文 / 国服 / 国际服译名、官方绰号 | 仅作名称补充 |
-| [什亭之匣 arona.icu](https://arona.icu) | 大决战榜单、助战位、好友码 | 需自行申请 token，格式 `<QQ号>:<密钥>` |
+| [什亭之匣 arona.icu](https://arona.icu) | 大决战榜单、助战位、好友码 | 需自行申请 token（`<QQ号>:<密钥>`，与首次请求 IP 绑定）；插件默认直连，见 [部署与迁移](docs/MIGRATE-TO-LOCAL.md) |
 | [Bilibili](https://www.bilibili.com) | 攻略视频 | 仅标题与链接，不转载内容 |
 
 **数据版权归各来源站所有**，本插件只做聚合查询与格式化展示，输出均附带来源行。使用 arona 接口前请在 [arona.icu](https://arona.icu) 完成「数据来源备注」声明。
@@ -161,7 +161,7 @@ astrbot_plugin_ba_wiki/
 <details>
 <summary>报 <code>code 4007</code></summary>
 
-arona 的 token 必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定**。换机器后要么重新申请，要么用 `arona_proxy.json` 走转发。
+arona 的 token 必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定、绑死后不可改**。换网络或换机器需重新申请。家宽动态 IP 的处理方案见 [docs/MIGRATE-TO-LOCAL.md](docs/MIGRATE-TO-LOCAL.md)。
 </details>
 
 <details>
@@ -181,6 +181,14 @@ arona 的 token 必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定
 
 上游只有国服有榜单，赛期列表才是全服通用。插件遇到别的区服会直说查不到，不拿国服数据凑。
 </details>
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/MIGRATE-TO-LOCAL.md](docs/MIGRATE-TO-LOCAL.md) | **arona 鉴权怎么配、怎么从远端转发迁回本地直连** |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（插件安装、数据目录、排障） |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 重构任务与设计取舍记录 |
 
 ## 开发
 
