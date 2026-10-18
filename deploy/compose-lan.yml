@@ -1,0 +1,21 @@
+services:
+  astrbot:
+    # 这台机器 Docker Hub 不通，用 1panel 镜像源（daocloud 偶尔 502）
+    image: docker.1panel.live/soulter/astrbot:latest
+    container_name: astrbot
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      # 局域网直接访问，不需要 SSH 隧道
+      - "6185:6185"
+      # Windows 上的 NapCat 通过局域网连这个端口
+      - "6199:6199"
+    volumes:
+      - ./data:/AstrBot/data
+    networks:
+      - astrbot_net
+
+networks:
+  astrbot_net:
+    driver: bridge

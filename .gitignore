@@ -1,0 +1,32 @@
+# 忽略运行时数据与密钥
+__pycache__/
+*.pyc
+
+# 插件运行时数据（不随仓库走）
+data/
+*.db
+*.db-wal
+*.db-shm
+students_zh.json
+students.min.json
+names.json
+names_kivo.json
+
+# 密钥与凭证
+.env
+arona_token.txt
+arona-proxy-key.txt
+*.key
+*.pem
+
+# 测试运行时产物（可删，首次运行会重新下载）
+tests/.data/
+tests/.run/
+tests/.baseline/
+
+# 本地杂项
+.DS_Store
+Thumbs.db
+
+# 构建产物与历史存档（如需保留请放 Release）
+*.zip

@@ -1,0 +1,28 @@
+{
+  "font": {
+    "description": "字体（文本转图片）",
+    "type": "object",
+    "hint": "中文变方块（□□□）是因为宿主机缺 CJK 字体。插件会自己下载并校验；也可以在本插件设置页的「字体」标签里点按钮手动触发。",
+    "items": {
+      "auto_download": {
+        "description": "启动时自动检查并补装字体",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后插件加载时会在后台检查 data/font.ttf 是否存在且字形完整，缺失才下载（约 19MB，不阻塞启动）。关掉后只能从「字体」页或 /ba 字体 手动触发。"
+      },
+      "mirror_prefix": {
+        "description": "下载加速前缀（可留空）",
+        "type": "string",
+        "default": "",
+        "hint": "留空则按内置顺序尝试 ghfast.top → jsdelivr → raw.githubusercontent.com → github.com。若你的网络需要自定义反代，填不带斜杠结尾的前缀，例如 https://ghfast.top，插件会拼成 <前缀>/https://github.com/notofonts/noto-cjk/raw/main/Sans/OTC/NotoSansCJK-Regular.ttc"
+      },
+      "open_page": {
+        "description": "字体管理页",
+        "type": "string",
+        "default": "",
+        "invisible": true,
+        "hint": "见插件页「字体」标签"
+      }
+    }
+  }
+}

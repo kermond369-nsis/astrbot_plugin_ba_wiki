@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>字体（文本转图片）</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      margin: 0; padding: 20px 22px; line-height: 1.6;
+      background: transparent; color: inherit;
+    }
+    h2 { font-size: 16px; margin: 0 0 4px; }
+    .sub { opacity: .7; font-size: 13px; margin-bottom: 16px; }
+    .card {
+      border: 1px solid rgba(127,127,127,.28); border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 14px;
+    }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(127,127,127,.18); }
+    th { font-weight: 600; opacity: .8; }
+    .ok { color: #16a34a; font-weight: 600; }
+    .bad { color: #dc2626; font-weight: 600; }
+    button {
+      font: inherit; padding: 7px 16px; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(127,127,127,.4); background: rgba(127,127,127,.12); color: inherit;
+    }
+    button:hover:not(:disabled) { background: rgba(127,127,127,.22); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #log {
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+      white-space: pre-wrap; max-height: 200px; overflow: auto;
+      background: rgba(127,127,127,.10); border-radius: 8px; padding: 10px; margin-top: 12px;
+    }
+    .hint { font-size: 12px; opacity: .7; }
+  </style>
+</head>
+<body>
+  <h2>字体管理</h2>
+  <div class="sub">文本转图片（T2I）时中文变方块，是宿主机缺 CJK 字体。这里可以一键装好并校验。</div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btn-refresh">刷新状态</button>
+      <button id="btn-download">下载 / 修复字体</button>
+      <span class="hint">约 19MB + 20MB，下载走 GitHub 加速镜像</span>
+    </div>
+    <div id="summary" class="sub"></div>
+    <table>
+      <thead><tr><th>文件</th><th>状态</th><th>大小</th><th>缺失字形</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="4">读取中…</td></tr></tbody>
+    </table>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const bridge = window.AstrBotPluginPage || window.AstrBotPluginView;
+    const $ = (id) => document.getElementById(id);
+
+    function log(msg) {
+      const el = $("log");
+      el.textContent += (el.textContent ? "\n" : "") + msg;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function render(data) {
+      $("summary").innerHTML = data.ok
+        ? '<span class="ok">✓ 字体已就绪</span>，文字转图片不会再出现方块。'
+        : '<span class="bad">✗ 字体缺失或不完整</span>，点上面的按钮安装。';
+      const rows = Object.entries(data.files || {}).map(([name, f]) => {
+        const st = f.ok ? '<span class="ok">就绪</span>' : '<span class="bad">待安装</span>';
+        return `<tr><td>${name}</td><td>${st}</td><td>${f.size_mb} MB</td><td>${f.missing_chars || "—"}</td></tr>`;
+      }).join("");
+      $("rows").innerHTML = rows || '<tr><td colspan="4">无数据</td></tr>';
+    }
+
+    async function refresh() {
+      try {
+        const data = await bridge.apiGet("font/status");
+        render(data);
+      } catch (e) {
+        log("读取状态失败：" + e);
+      }
+    }
+
+    async function download() {
+      const btn = $("btn-download");
+      btn.disabled = true;
+      log("开始检查 / 下载…");
+      try {
+        const res = await bridge.apiPost("font/download", { force: true });
+        (res.actions || []).forEach((a) => log("· " + a));
+        (res.errors || []).forEach((a) => log("✗ " + a));
+        log(res.ok ? "完成 ✓" : "完成，但有失败项（见上）");
+        render(res);
+      } catch (e) {
+        log("下载失败：" + e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    $("btn-refresh").addEventListener("click", refresh);
+    $("btn-download").addEventListener("click", download);
+
+    (async () => {
+      if (bridge && bridge.ready) { try { await bridge.ready(); } catch (e) {} }
+      refresh();
+    })();
+  </script>
+</body>
+</html>
