@@ -33,5 +33,4 @@ Thumbs.db
 
 # 转发器容器：token 与证书不进仓库
 deploy/docker/secrets/
-deploy/docker/certs/
 deploy/docker/.env

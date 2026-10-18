@@ -10,6 +10,7 @@ AstrBot 跑在家里局域网，出口 IP 不同，直接用 token 会校验失�
 - HTTPS 监听（自签证书，SAN 绑定本机 IP），客户端在 AstrBot主机 上信任该证书
 - 共享密钥头 X-Proxy-Key，防止被扫到就白用
 - token 只存在本机 /root/.arona_token，不下发给客户端
+- 既可自己终止 TLS，也可 `PROXY_TLS=0` 纯 HTTP 交给前置反代（nginx / caddy）
 - 只转发 /api/* 的 POST
 """
 
@@ -104,12 +105,30 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     if not KEY:
         print("[proxy] 警告：PROXY_KEY 为空，任何扫到端口的人都能用", flush=True)
+
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    ctx.load_cert_chain(CERT, KEYFILE)
-    httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-    print(f"[proxy] https://{BIND}:{PORT} -> {UPSTREAM}", flush=True)
+
+    # PROXY_TLS: 1/on 强制 TLS；0/off 纯 HTTP（交给前置反代终止）；auto（默认）看证书在不在
+    mode = (os.environ.get("PROXY_TLS", "auto") or "auto").strip().lower()
+    if mode in ("1", "true", "yes", "on"):
+        want_tls = True
+    elif mode in ("0", "false", "no", "off"):
+        want_tls = False
+    else:
+        want_tls = os.path.exists(CERT) and os.path.exists(KEYFILE)
+
+    if want_tls:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.load_cert_chain(CERT, KEYFILE)
+        httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+        print(f"[proxy] https://{BIND}:{PORT} -> {UPSTREAM}", flush=True)
+    else:
+        print(
+            f"[proxy] http://{BIND}:{PORT} -> {UPSTREAM}（TLS 由前置反代终止）",
+            flush=True,
+        )
+
     httpd.serve_forever()
 
 

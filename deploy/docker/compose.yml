@@ -1,5 +1,6 @@
-# arona 转发器 —— 一台有固定出口 IP 的机器上跑它，AstrBot 那侧就永远不怕换 IP
+# arona 转发器（纯 HTTP）
 #
+#   容器只监听容器内 30303，宿主机只绑 127.0.0.1:3030 —— 公网访问一律经过前置反代。
 #   cd deploy/docker
 #   cp .env.example .env && vi .env
 #   mkdir -p secrets && printf '%s\n' '你的QQ号:密钥' > secrets/arona_token
@@ -12,19 +13,16 @@ services:
     image: arona-proxy:latest
     container_name: arona-proxy
     restart: unless-stopped
+    # 只绑回环：外部无法直接摸到这个 HTTP 口，必须经反代
     ports:
-      - "${PROXY_PORT:-8443}:8443"
+      - "127.0.0.1:${HOST_PORT:-3030}:30303"
     environment:
-      PROXY_PORT: "8443"
+      PROXY_PORT: "30303"
+      PROXY_TLS: "0"
       PROXY_KEY: "${PROXY_KEY:?请在 .env 里设置 PROXY_KEY，用 openssl rand -hex 16 生成}"
-      PUBLIC_IP: "${PUBLIC_IP:-}"
-      CERT_CN: "${CERT_CN:-arona-proxy}"
       ARONA_TOKEN_FILE: /run/secrets/arona_token
-      PROXY_CERT: /app/certs/server.crt
-      PROXY_KEYFILE: /app/certs/server.key
     volumes:
       - ./secrets/arona_token:/run/secrets/arona_token:ro
-      - ./certs:/app/certs
     security_opt:
       - no-new-privileges:true
     logging:

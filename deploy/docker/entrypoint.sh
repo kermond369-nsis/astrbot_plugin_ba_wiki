@@ -1,33 +1,6 @@
 #!/bin/sh
-# 启动前确保：
-#   1. 证书存在（没有就按 CERT_CN 自签一张，SAN 里带上 PUBLIC_IP）
-#   2. token 文件可读（否则直接退出，别让它静默 401）
+# 启动前确认 token 可读；TLS 与证书不归容器管，由前置反代负责。
 set -eu
-
-CERT="${PROXY_CERT:-/app/certs/server.crt}"
-KEYFILE="${PROXY_KEYFILE:-/app/certs/server.key}"
-CERT_DIR="$(dirname "$CERT")"
-CN="${CERT_CN:-arona-proxy}"
-PUBLIC_IP="${PUBLIC_IP:-}"
-
-mkdir -p "$CERT_DIR"
-
-if [ ! -f "$CERT" ] || [ ! -f "$KEYFILE" ]; then
-    echo "[entrypoint] 未找到证书，自签一张（CN=$CN${PUBLIC_IP:+, IP=$PUBLIC_IP}）" >&2
-    SAN="DNS:$CN"
-    if [ -n "$PUBLIC_IP" ]; then
-        SAN="$SAN,IP:$PUBLIC_IP"
-    fi
-    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-        -keyout "$KEYFILE" -out "$CERT" \
-        -subj "/CN=$CN" \
-        -addext "subjectAltName=$SAN" 2>/dev/null
-    chmod 600 "$KEYFILE"
-    echo "[entrypoint] 证书已生成：$CERT" >&2
-    echo "[entrypoint] 客户端需要信任它（或改用正规证书挂进来）" >&2
-else
-    echo "[entrypoint] 复用已有证书：$CERT" >&2
-fi
 
 TOKEN_FILE="${ARONA_TOKEN_FILE:-/run/secrets/arona_token}"
 if [ ! -s "$TOKEN_FILE" ]; then
@@ -37,7 +10,10 @@ if [ ! -s "$TOKEN_FILE" ]; then
 fi
 
 if [ -z "${PROXY_KEY:-}" ]; then
-    echo "[entrypoint] 警告：PROXY_KEY 为空，任何能扫到端口的人都能用这条转发" >&2
+    echo "[entrypoint] 警告：PROXY_KEY 为空，任何能访问该端口的人都能用这条转发" >&2
 fi
+
+# 只监听内网时通常已在 compose 里绑到 127.0.0.1，这里再提示一次
+echo "[entrypoint] 监听 ${PROXY_BIND:-0.0.0.0}:${PROXY_PORT:-30303}（HTTP，无 TLS）" >&2
 
 exec python /app/arona_proxy.py

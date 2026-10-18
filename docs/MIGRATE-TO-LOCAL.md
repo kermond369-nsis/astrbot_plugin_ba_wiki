@@ -167,8 +167,8 @@ systemctl daemon-reload
 | `200` | 正常 | —— |
 
 > 如果之后想再把转发捡回来，仓库里有现成的容器化方案：
-> [deploy/docker](../deploy/docker/README.md) —— `docker compose up -d` 即可起一个自签证书、
-> 挂载 token、带健康检查的转发器，不用手动装 systemd 单元。
+> [deploy/docker](../deploy/docker/README.md) —— `docker compose up -d` 起一个**纯 HTTP** 的转发器
+> （容器内 30303，宿主机只绑 `127.0.0.1:3030`），TLS / 证书 / 域名交给前置反代，不用手动装 systemd 单元。
 
 ## 六、家宽动态 IP 怎么办
 

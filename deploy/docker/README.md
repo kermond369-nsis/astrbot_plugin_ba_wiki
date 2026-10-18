@@ -1,72 +1,103 @@
-# arona 转发器（Docker）
+# arona 转发器（纯 HTTP + 反代接管 TLS）
 
 > 只在**家宽出口 IP 不稳定**时才需要它。正常情况下插件直连 `api.arona.icu` 就够了，
 > 见 [docs/MIGRATE-TO-LOCAL.md](../../docs/MIGRATE-TO-LOCAL.md)。
 
 ## 它解决什么
 
-arona 的 token 与**首次请求的 IP 绑定且不可改**。如果 AstrBot 所在网络的出口 IP 会变，
+arona 的 token 与**首次请求的 IP 绑定且不可改**。如果 AstrBot 所在网络出口 IP 会变，
 直连就会 `4007`。这时找一台有固定 IP 的机器跑这个转发器：
 
 ```
-AstrBot ──HTTPS + X-Proxy-Key──▶ 转发器（固定出口 IP）──▶ api.arona.icu
+AstrBot ──HTTPS──▶ 反代（nginx / caddy，终止 TLS）──HTTP──▶ 转发器:30303 ──▶ api.arona.icu
 ```
 
-转发器持有 token，客户端只持有共享密钥，token 不下发。
+**容器不碰证书**。自签、Let's Encrypt、域名、HSTS 全部交给反代；容器只在内网回环上听一个 HTTP 口。
+
+## 端口约定
+
+```
+宿主机  127.0.0.1:3030   ← 只绑回环，公网摸不到
+容器            30303   ← 容器内固定端口
+反代    443 → 127.0.0.1:3030
+```
 
 ## 三分钟跑起来
 
 ```bash
 cd deploy/docker
 
-# 1. 配置
 cp .env.example .env
 sed -i "s/^PROXY_KEY=.*/PROXY_KEY=$(openssl rand -hex 16)/" .env
-sed -i "s/^PUBLIC_IP=.*/PUBLIC_IP=$(curl -s https://api.ipify.org)/" .env
 
-# 2. token（不进镜像、不进 git）
 mkdir -p secrets
 printf '%s\n' '<QQ号>:<密钥>' > secrets/arona_token
 chmod 600 secrets/arona_token
 
-# 3. 起
 docker compose up -d
-docker compose logs -f
+docker compose ps                        # 应显示 healthy
+curl -s http://127.0.0.1:3030/healthz    # {"ok": true, "upstream": "https://api.arona.icu"}
 ```
 
-首次启动会自动在 `certs/` 里自签一张证书（SAN 带上 `.env` 里的 `PUBLIC_IP`）。
+## 反代示例
 
-健康检查：
+### Caddy（最省事，自动签证书）
+
+`/etc/caddy/Caddyfile`：
+
+```caddy
+arona.example.com {
+    reverse_proxy 127.0.0.1:3030
+}
+```
 
 ```bash
-docker compose ps                       # 应显示 healthy
-curl -k https://127.0.0.1:8443/healthz  # {"ok": true, "upstream": "https://api.arona.icu"}
+sudo systemctl reload caddy
 ```
+
+### nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name arona.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/arona.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/arona.example.com/privkey.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:3030;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+> 反代**不要**加访问认证（Basic Auth 之类）——插件只带 `X-Proxy-Key`，
+> 加别的会 401。要收紧就换强一点的 `PROXY_KEY`。
 
 ## 接到插件上
 
 AstrBot 那边在插件数据目录写 `arona_proxy.json`：
 
 ```json
-{"url": "https://<转发器地址>:8443", "key": "<.env 里的 PROXY_KEY>"}
+{"url": "https://arona.example.com", "key": "<.env 里的 PROXY_KEY>"}
+```
+
+如果 AstrBot 和转发器在**同一台机器**，可以省掉反代，直接：
+
+```json
+{"url": "http://127.0.0.1:3030", "key": "<PROXY_KEY>"}
 ```
 
 重启 AstrBot。这个文件存在时插件就走转发，**不需要** `arona_token.txt`。
 
-自签证书需要客户端信任，否则只能 `-k`。两种做法：
-
-- 把 `certs/server.crt` 拷到 AstrBot 机器，装进系统信任库：
-  ```bash
-  sudo cp server.crt /usr/local/share/ca-certificates/arona-proxy.crt
-  sudo update-ca-certificates
-  ```
-- 或者用 Let's Encrypt / 自己签的正规证书挂到 `certs/server.crt` 与 `certs/server.key`
-
 ## 换 token
 
-改 `secrets/arona_token` 后：
-
 ```bash
+vi secrets/arona_token
 docker compose restart arona-proxy
 ```
 
@@ -75,14 +106,15 @@ docker compose restart arona-proxy
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `PROXY_KEY` | 必填 | 客户端调用凭证，`openssl rand -hex 16` |
-| `PROXY_PORT` | 8443 | 宿主机端口 |
-| `PUBLIC_IP` | 空 | 自签证书 SAN 里的 IP，填对外可达的地址 |
-| `CERT_CN` | arona-proxy | 证书 CN |
+| `HOST_PORT` | 3030 | 宿主机回环端口（容器内固定 30303） |
+| `PROXY_PORT` | 容器内固定 30303 | 一般不用改 |
+| `PROXY_TLS` | 镜像里固定 `0` | 容器不终止 TLS |
 | `ARONA_TOKEN_FILE` | `/run/secrets/arona_token` | compose 已固定 |
-| `PROXY_CERT` / `PROXY_KEYFILE` | `/app/certs/server.*` | 挂载到 `./certs` |
 
 ## 注意
 
-- **不要**把 `secrets/` 和 `certs/` 提交进仓库（`.gitignore` 已覆盖 `*.key` / `*.pem`，另见下方）
-- 容器只暴露 HTTPS，内部不做鉴权以外的任何逻辑；`PROXY_KEY` 为空时会打警告，别让它空着
-- 只转发 `POST /api/*` 与 `GET /healthz`，其余一律 404
+- 容器**只**转发 `POST /api/*` 与 `GET /healthz`，其余 404
+- `PROXY_KEY` 为空会打警告但继续跑——别让它空着，尤其别把端口暴露到公网
+- `secrets/`、`certs/`、`.env` 都在 `.gitignore` 里，别提交
+- 想自己终止 TLS（不挂反代）也可以：`PROXY_TLS=1` 并把证书挂进容器，
+  但既然有反代，就没必要

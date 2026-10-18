@@ -1,13 +1,8 @@
-# arona 转发的容器镜像
+# arona 转发器（纯 HTTP 版）
 #
 # 只做一件事：用本机固定出口 IP 去调 api.arona.icu，并注入 token。
-# token 不写进镜像、不写进 compose，挂载进 /run/secrets 即可。
+# 容器本身**不处理 TLS** —— 证书、HTTPS、域名都交给前置反代，容器只监听内网 HTTP 端口。
 FROM python:3.12-slim
-
-# 证书在容器启动时自签，需要 openssl
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -17,17 +12,13 @@ COPY deploy/docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 ENV PROXY_BIND=0.0.0.0 \
-    PROXY_PORT=8443 \
-    ARONA_TOKEN_FILE=/run/secrets/arona_token \
-    PROXY_CERT=/app/certs/server.crt \
-    PROXY_KEYFILE=/app/certs/server.key \
-    CERT_DIR=/app/certs
+    PROXY_PORT=30303 \
+    PROXY_TLS=0 \
+    ARONA_TOKEN_FILE=/run/secrets/arona_token
 
-VOLUME ["/app/certs"]
+EXPOSE 30303
 
-EXPOSE 8443
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import ssl,urllib.request;ctx=ssl._create_unverified_context();urllib.request.urlopen('https://127.0.0.1:8443/healthz',context=ctx,timeout=4)"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:30303/healthz',timeout=4)"
 
 ENTRYPOINT ["/app/entrypoint.sh"]
