@@ -337,6 +337,34 @@ def add_weapon(stats: Stats, weapon: dict, level: int) -> None:
         stats.add_buff(stat + "_Base", _js_round(first + (last - first) * scale))
 
 
+def _stat_keys() -> set[str]:
+    return set(DISPLAY_STATS) | {
+        "DamageRatio", "DamagedRatio", "EnhanceExDamageRate", "CriticalDamageResistRate",
+    }
+
+
+def add_skill_stats(stats: Stats, record: dict, level: int = 1) -> None:
+    """被动技能（Skills.Passive）的常驻属性加成，例如「永不放弃的心」+14% 攻击。
+
+    数值表是按技能等级给的一组数（1400 = 14%），取 level 那一项。
+    """
+    passive = (record.get("Skills") or {}).get("Passive") or {}
+    for effect in passive.get("Effects") or []:
+        if not isinstance(effect, dict) or effect.get("Type") != "Buff":
+            continue
+        stat = effect.get("Stat") or ""
+        base = stat.replace("_Coefficient", "").replace("_Base", "")
+        if base not in _stat_keys():
+            continue
+        values = effect.get("Value") or []
+        row = values[0] if values and isinstance(values[0], list) else values
+        if not row:
+            continue
+        value = int(row[max(0, min(int(level), len(row)) - 1)])
+        if value:
+            stats.add_buff(stat, value)
+
+
 def potential_bonus(record: dict, stat: str, level: int, potential_level: int) -> int:
     """能力解放：每级 +0.2% 的「1★ 该等级插值基础值」，四舍五入，等级 90 起才生效。"""
     if level < REGION["student_max_level"] or potential_level <= 0:
@@ -397,7 +425,8 @@ DISPLAY_STATS = (
 
 def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int = 5,
             equip_tiers=None, ue=None, weapon_level: int = 50, bond_level: int = 50,
-            potential: int | None = None, students: dict | None = None) -> dict:
+            potential: int | None = None, skill_level: int = 1,
+            students: dict | None = None) -> dict:
     """算出最终面板。
 
     ue=None 表示按数据里是否已实装自动判断；potential=None 表示「90 级时按满级 25、否则 0」。
@@ -437,6 +466,8 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
             if value:
                 stats.add_buff(stat + "_Base", value)
 
+    add_skill_stats(stats, record, skill_level)
+
     totals = {stat: stats.total(stat) for stat in DISPLAY_STATS}
     totals["stats"] = stats
     totals["gear"] = gear_applied
@@ -445,6 +476,7 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     totals["bond_alt_level"] = bond_alt_level
     totals["bond_variants"] = bond_variants
     totals["bond_total"] = bond_level + bond_alt_level * bond_variants
+    totals["skill_level"] = skill_level
     return totals
 
 

@@ -99,6 +99,11 @@ def parse_stats_query(text: str) -> tuple[str, dict]:
         out["bond_level"] = max(0, min(int(m.group(1)), 999))
         t = t.replace(m.group(0), " ")
 
+    m = re.search(r"技能\s*(\d{1,2})", t)
+    if m:
+        out["skill_level"] = max(1, min(int(m.group(1)), 10))
+        t = t.replace(m.group(0), " ")
+
     m = re.search(r"武器\s*(\d{1,3})", t)
     if m:
         out["weapon_level"] = max(0, min(int(m.group(1)), 90))

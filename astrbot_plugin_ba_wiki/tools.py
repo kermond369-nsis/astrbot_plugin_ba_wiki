@@ -114,7 +114,8 @@ def _parse_levels(text: str, size: int, lo: int, hi: int) -> list[int] | None:
 def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: int = 5,
                         equip_tier: int = 0, equip_tiers: str = "", favorite_item: bool = True,
                         weapon_level: int | None = None, ue_tier: int = 0,
-                        bond_level: int = 50, potential: str | int = "") -> dict:
+                        bond_level: int = 50, potential: str | int = "",
+                        skill_level: int = 1) -> dict:
     """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
 
     与 build_skill_payload 一样返回喂给模型的 JSON，形状稳定。
@@ -170,7 +171,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     totals = stats_src.compute(
         student, table, level=level, star=star, equip_tiers=tiers,
         ue=favorite_item, weapon_level=weapon_level, bond_level=bond_level,
-        potential=pot, students=students,
+        potential=pot, skill_level=skill_level, students=students,
     )
     profile = stats_src.labels(student)
     by_lang = names.get(sid, {})
@@ -199,6 +200,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "bond_variants": totals.get("bond_variants", 0),
             "bond_total": totals.get("bond_total", 0),
             "bond_requested": bond_requested,
+            "skill_level": totals.get("skill_level", 1),
             "potential": totals.get("potential", {}),
         },
         "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
@@ -223,6 +225,7 @@ class BAToolsMixin:
         weapon_level: int = -1,
         ue_tier: int = 0,
         potential: str = "",
+        skill_level: int = 1,
     ) -> str:
         """查询《蔚蓝档案》角色的完整面板数值（生命值 / 攻击力 / 防御力 / 治愈力 / 命中 / 闪避 / 暴击 / 射程等）。
 
@@ -246,6 +249,7 @@ class BAToolsMixin:
                 超出该阶上限的等级会被夹到上限。
             potential(string): 能力解放等级，三项各自独立，如「0/25/0」=生命0/攻击25/治愈0；
                 单个数字表示三项同级；留空表示 90 级时按满级 25、否则 0。
+            skill_level(int): 被动技能等级 1~10，默认 1（面板里的技能属性加成按此等级取）。
             favorite_item(bool): 是否计入爱用品（SchaleDB 的 Gear），默认 True；无数据时自动忽略。
 
         Returns:
@@ -260,6 +264,7 @@ class BAToolsMixin:
                 level=level, star=star, equip_tier=equip_tier, equip_tiers=equip_tiers,
                 favorite_item=favorite_item, ue_tier=ue_tier,
                 weapon_level=None if weapon_level < 0 else weapon_level, potential=potential,
+                skill_level=skill_level,
             )
         except FileNotFoundError:
             return json.dumps({"ok": False, "reason": "本地装备数据缺失且下载失败，请检查能否访问 schaledb.com"},
