@@ -258,6 +258,18 @@ def from_record(record: dict, level: int, star: int) -> Stats:
     s.set_base("StabilityRate", _raw(record, "StabilityRate"))
     for stat, value in _FIXED.items():
         s.set_base(stat, value)
+
+    # 补齐完整面板里的其余属性（数据没写的用 SchaleDB 的默认值）
+    override = record.get("Stat" + REGION["name"])
+    for key, default in _DEFAULTS.items():
+        if key in s.data:
+            continue
+        value = record.get(key)
+        if value is None and isinstance(override, dict):
+            value = override.get(key)
+        if value is None and key == "CriticalChanceResistPoint":
+            value = record.get("CriticalResistPoint")
+        s.set_base(key, float(value) if value is not None else default)
     return s
 
 
@@ -348,21 +360,27 @@ def add_skill_stats(stats: Stats, record: dict, level: int = 1) -> None:
 
     数值表是按技能等级给的一组数（1400 = 14%），取 level 那一项。
     """
-    passive = (record.get("Skills") or {}).get("Passive") or {}
-    for effect in passive.get("Effects") or []:
-        if not isinstance(effect, dict) or effect.get("Type") != "Buff":
-            continue
-        stat = effect.get("Stat") or ""
-        base = stat.replace("_Coefficient", "").replace("_Base", "")
-        if base not in _stat_keys():
-            continue
-        values = effect.get("Value") or []
-        row = values[0] if values and isinstance(values[0], list) else values
-        if not row:
-            continue
-        value = int(row[max(0, min(int(level), len(row)) - 1)])
-        if value:
-            stats.add_buff(stat, value)
+    skills = record.get("Skills") or {}
+    allowed = set(FULL_STAT_KEYS) | {
+        "DamageRatio", "DamagedRatio", "EnhanceExDamageRate", "ExDamagedRatio",
+        "CriticalDamageResistRate", "HealEffectivenessRate",
+    }
+    for slot in ("Passive", "ExtraPassive", "WeaponPassive"):
+        skill = skills.get(slot) or {}
+        for effect in skill.get("Effects") or []:
+            if not isinstance(effect, dict) or effect.get("Type") != "Buff":
+                continue
+            stat = effect.get("Stat") or ""
+            base = stat.replace("_Coefficient", "").replace("_Base", "")
+            if base not in allowed:
+                continue
+            values = effect.get("Value") or []
+            row = values[0] if values and isinstance(values[0], list) else values
+            if not row:
+                continue
+            value = int(row[max(0, min(int(level), len(row)) - 1)])
+            if value:
+                stats.add_buff(stat, value)
 
 
 def potential_bonus(record: dict, stat: str, level: int, potential_level: int) -> int:
@@ -414,6 +432,80 @@ def add_bond(stats: Stats, record: dict, level: int, students: dict | None = Non
         for stat, value in bond_bonus(alt, alt_level).items():
             stats.add_buff(stat, value)
     return used
+
+
+FULL_STATS = [
+    # (键, 中文名, 默认值, 是否百分比)
+    ("MaxHP", "体力上限", 0, False),
+    ("AttackPower", "攻击力", 0, False),
+    ("DefensePower", "防御力", 0, False),
+    ("HealPower", "治疗力", 0, False),
+    ("AccuracyPoint", "命中值", 0, False),
+    ("DodgePoint", "闪避值", 0, False),
+    ("CriticalPoint", "暴击值", 0, False),
+    ("CriticalChanceResistPoint", "暴击抵抗力", 100, False),
+    ("CriticalDamageRate", "暴击伤害", 20000, True),
+    ("CriticalDamageResistRate", "暴击伤害抵抗率", 5000, True),
+    ("StabilityPoint", "稳定值", 0, False),
+    ("StabilityRate", "稳定率", 2000, True),
+    ("Range", "普通攻击射程", 0, False),
+    ("SightPoint", "视野", 0, False),
+    ("OppressionPower", "群控强化", 100, False),
+    ("OppressionResist", "群控抵抗", 100, False),
+    ("HealEffectivenessRate", "受恢复率", 10000, True),
+    ("RegenCost", "蓄能值恢复力", 700, False),
+    ("AttackSpeed", "攻击速度", 10000, True),
+    ("MoveSpeed", "移动速度", 200, False),
+    ("BlockRate", "掩体格挡率", 0, True),
+    ("DefensePenetration", "防御无视值", 0, False),
+    ("DamageRatio", "增伤率", 10000, True),
+    ("DamagedRatio", "免伤率", 10000, True),
+    ("EnhanceExDamageRate", "EX技能增伤率", 0, True),
+    ("ExDamagedRatio", "EX技能免伤率", 10000, True),
+    ("EnhanceBasicsDamageRate", "基础熟练度", 10000, True),
+    ("HealRate", "回复量加成", 10000, True),
+    ("EnhanceExplosionRate", "爆炸克制率", 10000, True),
+    ("EnhancePierceRate", "贯通克制率", 10000, True),
+    ("EnhanceMysticRate", "神秘克制率", 10000, True),
+    ("EnhanceSonicRate", "振动克制率", 10000, True),
+    ("ExtendBuffDuration", "增益持续力", 10000, True),
+    ("ExtendDebuffDuration", "减益持续力", 10000, True),
+    ("AmmoCount", "载弹量", 0, False),
+]
+FULL_STAT_KEYS = [k for k, _l, _d, _p in FULL_STATS]
+PERCENT_STATS = {k for k, _l, _d, p in FULL_STATS if p}
+_DEFAULTS = {k: d for k, _l, d, _p in FULL_STATS}
+
+
+# 这几个属性以 10000 为「0%」基准（游戏里显示 (值-10000)/100 ）
+OFFSET_STATS = {"DamageRatio", "DamagedRatio", "HealEffectivenessRate",
+                "EnhanceBasicsDamageRate", "HealRate", "ExDamagedRatio"}
+
+
+def fmt_stat(key: str, value) -> str:
+    if key in OFFSET_STATS:
+        pct = (value - 10000) / 100
+        return f"{pct:.0f}%" if float(pct).is_integer() else f"{pct:.2f}%"
+    if key in PERCENT_STATS:
+        return f"{value / 100:.0f}%" if value % 100 == 0 else f"{value / 100:.2f}%"
+    return f"{int(value):,}"
+
+
+def defense_reduction(defense: int) -> float:
+    """防御伤害减免：1 - 10,000,000 / (防御 × 6000 + 10,000,000)。"""
+    return (1 - 10000000 / (max(defense, 0) * 6000 + 10000000)) * 100
+
+
+def stability_min_damage(stability: int, stability_rate: int) -> float:
+    """最低伤害：稳定值/(稳定值+1000) + 稳定率/10000，夹取 0~1。"""
+    return min(max(stability / (stability + 1000) + stability_rate / 10000, 0), 1) * 100
+
+
+def striker_bonus(total: int, stat_key: str, support_count: int = 2) -> int:
+    """支援属性值：HP/攻 10%、防/治 5%（>2 个支援时全部 5%），向下取整。"""
+    coef = {"MaxHP": 0.1, "AttackPower": 0.1, "DefensePower": 0.05, "HealPower": 0.05}
+    rate = 0.05 if support_count > 2 else coef.get(stat_key, 0)
+    return int(total * rate // 1)
 
 
 DISPLAY_STATS = (
@@ -468,7 +560,11 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
 
     add_skill_stats(stats, record, skill_level)
 
+    full = {key: stats.total(key) for key in FULL_STAT_KEYS}
     totals = {stat: stats.total(stat) for stat in DISPLAY_STATS}
+    totals["full"] = full
+    totals["defense_reduction"] = round(defense_reduction(full["DefensePower"]), 2)
+    totals["min_damage"] = round(stability_min_damage(full["StabilityPoint"], full["StabilityRate"]), 2)
     totals["stats"] = stats
     totals["gear"] = gear_applied
     totals["potential"] = levels

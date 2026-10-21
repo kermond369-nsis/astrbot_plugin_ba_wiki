@@ -204,6 +204,20 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "potential": totals.get("potential", {}),
         },
         "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
+        "stats_full": {label: totals["full"][key] for key, label, _d, _p in stats_src.FULL_STATS},
+        "stats_full_text": {
+            label: stats_src.fmt_stat(key, totals["full"][key])
+            for key, label, _d, _p in stats_src.FULL_STATS
+        },
+        "derived": {
+            "防御伤害减免": f"{totals['defense_reduction']:.2f}%",
+            "最低伤害": f"{totals['min_damage']:.2f}%",
+        },
+        "support_bonus": {
+            label: stats_src.striker_bonus(totals["full"][key], key)
+            for key, label in (("MaxHP", "体力上限"), ("AttackPower", "攻击力"),
+                               ("DefensePower", "防御力"), ("HealPower", "治疗力"))
+        } if (profile or {}).get("role") in ("支援", "治疗") else {},
         "note": "数值含等级/星级/装备/专武/武器/好感/能力解放（潜在能力）；地形适性 S~D 对应 4~0。",
         "attribution": "数据来源：SchaleDB https://schaledb.com",
     }

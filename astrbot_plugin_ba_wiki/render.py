@@ -81,13 +81,44 @@ def stats_text(payload: dict) -> str:
         f"学院 {profile.get('school', '-')}   站位 {profile.get('position', '-')}"
         f"   地形 市区{terrain.get('Street', '-')}/室外{terrain.get('Outdoor', '-')}/室内{terrain.get('Indoor', '-')}"
     )
-    order = [
-        ("生命值", "攻击力"), ("防御力", "治愈力"), ("命中值", "闪避值"),
-        ("暴击值", "暴击伤害"), ("稳定值", "射程"), ("载弹量", "COST 回复力"),
-    ]
+    from .sources.stats import FULL_STATS
+
+    full = payload.get("stats_full_text") or {}
+    derived = payload.get("derived") or {}
+    FULL_STAT_ROWS = [(label, full.get(label, "-")) for _k, label, _d, _p in FULL_STATS]
+    pairs = []
+    for i in range(0, len(FULL_STAT_ROWS), 2):
+        left = FULL_STAT_ROWS[i]
+        right = FULL_STAT_ROWS[i + 1] if i + 1 < len(FULL_STAT_ROWS) else None
+        pairs.append((left, right))
+
+    def cell(row) -> str:
+        if not row:
+            return ""
+        label, text = row
+        width = 10 if len(label) <= 5 else 12
+        return f"{label:<{width}}{text}"
+
     lines = []
-    for left, right in order:
-        lines.append(f"{left} {stats.get(left, '-')}    {right} {stats.get(right, '-')}")
+    for left, right in pairs:
+        extra = {"防御力": derived.get("防御伤害减免"), "稳定值": derived.get("最低伤害")}
+        left_label, left_value = left
+        if extra.get(left_label):
+            left_value = f"{left_value} ({extra[left_label]})"
+        row_l = (left_label, left_value)
+        row_r = right
+        if row_r and extra.get(row_r[0]):
+            row_r = (row_r[0], f"{row_r[1]} ({extra[row_r[0]]})")
+        lines.append((cell(row_l) + "    " + cell(row_r)).rstrip())
+
+    support = payload.get("support_bonus") or {}
+    if support:
+        lines.append("")
+        lines.append(
+            "作为支援时给前排："
+            + "  ".join(f"{k}+{v:,}" for k, v in support.items())
+        )
+
     return (
         f"「{payload.get('name', '?')}」面板\n"
         f"{' · '.join(bits)}\n"
