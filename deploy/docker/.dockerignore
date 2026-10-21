@@ -1,0 +1,7 @@
+# 密钥绝不进镜像
+config/
+# 杂项
+*.md
+.git
+__pycache__/
+*.pyc

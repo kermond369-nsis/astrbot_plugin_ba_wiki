@@ -1,0 +1,15 @@
+# 这个文件只是说明，别把它当配置用。
+#
+# 正确的做法：把本文件复制成同目录的 arona_token.txt，然后**只写一行**：
+#
+#     <QQ号>:<密钥>
+#
+# 例：12345678:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#
+# 几个要点：
+# - token 与「首次请求的 IP」绑定，绑死不可改；首次请求就是这台中转服务器的出口 IP。
+# - 换服务器 = 换 IP，必须找 arona 管理报备迁移，自己改不了。
+# - 文件里除了那一行，不要放别的有效内容（服务端按整行读入并 strip）。
+# - 改完不用重启容器：服务按文件 mtime 热加载。
+# - 权限：rootful docker 用 600 即可；rootless docker 下容器内 root 映射到子 uid，
+#   600 会 PermissionError，此时用 644（README 排障表有记）。

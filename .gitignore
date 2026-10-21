@@ -31,6 +31,9 @@ Thumbs.db
 # 构建产物与历史存档（如需保留请放 Release）
 *.zip
 
-# 转发器容器：token 与证书不进仓库
+# 中转容器：配置与 token 不进仓库（只提交 *.example）
+deploy/docker/config/proxy.env
+deploy/docker/config/arona_token.txt
+# 旧布局（已废弃，留着防误提交）
 deploy/docker/secrets/
 deploy/docker/.env
