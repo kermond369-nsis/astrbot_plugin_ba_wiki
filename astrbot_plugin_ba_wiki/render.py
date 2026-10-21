@@ -33,8 +33,8 @@ def stats_usage() -> str:
     return (
         "用法：/ba 面板 <学生> [Lv90] [5星] [专4] [武器60] [装备10/10/9] [能力解放25/25/25]\n"
         "例：/ba 面板 爱丽丝（临战）\n"
-        "默认就是满配：Lv90 · 5★ · 专4/武器60 · T10/T10/T10 · 爱用品 · 好感吃满（含全部皮肤） · 能力解放25 · 技能1\n"
-        "技能加成按 技能N 取对应等级（1~10），例：/ba 面板 爱丽丝（临战） 技能10"
+        "默认就是满配：Lv90 · 5★ · 专4/武器60 · T10/T10/T10 · 爱用品 · 好感吃满（含全部皮肤） · 能力解放25 · 技能10\n"
+        "技能加成按 技能N 取对应等级（1~10，默认满级），例：/ba 面板 爱丽丝（临战） 技能1"
         "\n不按区服是否实装过滤；想改口径直接写参数，例：/ba 面板 ツムギ 装备10/9/9 好感50"
     )
 
@@ -70,7 +70,7 @@ def stats_text(payload: dict) -> str:
         f"好感{int(build.get('bond_total', build.get('bond_level', 0)) or 0)}",
         "爱用品" if build.get("favorite_item") else "无爱用品",
         "能力解放" + _potential_text(build.get("potential")),
-        f"技能{build.get('skill_level', 1)}",
+        f"技能{build.get('skill_level', 10)}",
     ]
     terrain = profile.get("terrain") or {}
     type_line = (

@@ -425,7 +425,7 @@ DISPLAY_STATS = (
 
 def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int = 5,
             equip_tiers=None, ue=None, weapon_level: int = 50, bond_level: int = 50,
-            potential: int | None = None, skill_level: int = 1,
+            potential: int | None = None, skill_level: int = 10,
             students: dict | None = None) -> dict:
     """算出最终面板。
 
@@ -476,7 +476,7 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     totals["bond_alt_level"] = bond_alt_level
     totals["bond_variants"] = bond_variants
     totals["bond_total"] = bond_level + bond_alt_level * bond_variants
-    totals["skill_level"] = skill_level
+    totals["skill_level"] = skill_level if skill_level else 10
     return totals
 
 

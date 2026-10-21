@@ -115,7 +115,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
                         equip_tier: int = 0, equip_tiers: str = "", favorite_item: bool = True,
                         weapon_level: int | None = None, ue_tier: int = 0,
                         bond_level: int = 50, potential: str | int = "",
-                        skill_level: int = 1) -> dict:
+                        skill_level: int = 10) -> dict:
     """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
 
     与 build_skill_payload 一样返回喂给模型的 JSON，形状稳定。
@@ -200,7 +200,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "bond_variants": totals.get("bond_variants", 0),
             "bond_total": totals.get("bond_total", 0),
             "bond_requested": bond_requested,
-            "skill_level": totals.get("skill_level", 1),
+            "skill_level": totals.get("skill_level", 10),
             "potential": totals.get("potential", {}),
         },
         "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
@@ -225,7 +225,7 @@ class BAToolsMixin:
         weapon_level: int = -1,
         ue_tier: int = 0,
         potential: str = "",
-        skill_level: int = 1,
+        skill_level: int = 10,
     ) -> str:
         """查询《蔚蓝档案》角色的完整面板数值（生命值 / 攻击力 / 防御力 / 治愈力 / 命中 / 闪避 / 暴击 / 射程等）。
 
@@ -249,7 +249,7 @@ class BAToolsMixin:
                 超出该阶上限的等级会被夹到上限。
             potential(string): 能力解放等级，三项各自独立，如「0/25/0」=生命0/攻击25/治愈0；
                 单个数字表示三项同级；留空表示 90 级时按满级 25、否则 0。
-            skill_level(int): 被动技能等级 1~10，默认 1（面板里的技能属性加成按此等级取）。
+            skill_level(int): 被动技能等级 1~10，默认 10（按满级算）。
             favorite_item(bool): 是否计入爱用品（SchaleDB 的 Gear），默认 True；无数据时自动忽略。
 
         Returns:
