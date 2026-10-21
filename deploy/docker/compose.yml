@@ -8,7 +8,10 @@
 # 起：docker compose up -d
 services:
   arona-relay:
-    image: arona-relay:1.0.0
+    # 官方构建的镜像（GitHub Actions 自动发布，amd64 + arm64 双架构）：
+    #   docker compose pull && docker compose up -d
+    # 想用本地自己编译的，把下面这行换成本地 tag（docker build -t arona-relay:1.0.0 .）
+    image: ghcr.io/kermond369-nsis/arona-relay:1.0.0
     container_name: arona-relay
     restart: unless-stopped
 

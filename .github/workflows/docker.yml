@@ -1,0 +1,83 @@
+name: build-relay-image
+
+# 构建 deploy/docker 里的 arona 中转镜像并推到 GHCR：
+#   ghcr.io/<owner>/arona-relay:latest
+#   ghcr.io/<owner>/arona-relay:1.0.0      （版本号取自 deploy/docker/proxy.py 的 VERSION）
+#   ghcr.io/<owner>/arona-relay:sha-<短哈希>
+# 用仓库内置 GITHUB_TOKEN 推送，不需要任何自建密钥。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/docker/**'
+      - '.github/workflows/docker.yml'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: relay-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3      # 让 arm64 能在 amd64 runner 上构建
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 读取镜像版本号
+        id: ver
+        run: |
+          V=$(grep -oP '^VERSION = "\K[^"]+' deploy/docker/proxy.py)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "版本: $V"
+
+      - name: 生成 tags / labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/arona-relay
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=${{ steps.ver.outputs.version }}
+            type=sha,format=short,prefix=sha-
+            type=ref,event=tag
+
+      - name: 构建并推送（linux/amd64 + linux/arm64）
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/docker
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 摘要
+        run: |
+          {
+            echo "## arona-relay 镜像"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo
+            echo "arm64/amd64 双架构，pull 时按机器自动选。"
+          } >> "$GITHUB_STEP_SUMMARY"

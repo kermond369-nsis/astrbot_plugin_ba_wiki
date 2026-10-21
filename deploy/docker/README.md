@@ -35,6 +35,21 @@ docker images | grep arona-relay          # 应看到 arona-relay  1.0.0
 
 > 镜像是 **linux/amd64**。目标机不是 amd64 时，用下面的"自己构建"在本机编译。
 
+### 也可以直接从 GHCR 拉（推荐）
+
+GitHub Actions 会在 `deploy/docker/**` 或打 tag 时自动构建并发布到 **GitHub Container Registry**，
+amd64 / arm64 双架构，`docker compose` 会按机器架构自动选：
+
+```bash
+docker pull ghcr.io/kermond369-nsis/arona-relay:1.0.0    # 或 :latest
+```
+
+`compose.yml` 里默认就是 `ghcr.io/kermond369-nsis/arona-relay:1.0.0`，所以直接 `docker compose up -d`
+即可，连 `docker load` 都省了。
+
+> 包是 public 才能匿名 `docker pull`。若提示 `denied`，去
+> `Settings → Packages → arona-relay → Change visibility → Public`（或用带 `write:packages` 的 PAT 推）。
+
 ## 部署（三条命令 + 两个配置文件）
 
 ```bash
