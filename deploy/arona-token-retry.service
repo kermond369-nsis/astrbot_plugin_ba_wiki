@@ -1,0 +1,16 @@
+[Unit]
+Description=arona 真 token 恢复尝试（单次；失败自动退回官方测试 token）
+Documentation=file:///opt/astrbot-qq/tools/arona_restore_token.sh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 必须用 codex 跑：数据目录里的 token 是 codex 600，root 写的文件插件读不到
+User=codex
+Group=codex
+Environment=TOOLS=/opt/astrbot-qq/tools
+ExecStart=/opt/astrbot-qq/tools/arona_restore_token.sh
+# 脚本内部会用 sudo -n 重启 astrbot.service（该用户已免密）
+TimeoutStartSec=600
+Nice=10

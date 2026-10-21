@@ -1,0 +1,13 @@
+[Unit]
+Description=每 25 小时尝试一次恢复 arona 真 token（间隔需 > 24h 封禁周期，避免自己把封禁重挂）
+
+[Timer]
+# 首次在启用后 25h，之后每 25h 一次；都是相对计时，重启后重新起算（宁晚不早）
+OnActiveSec=25h
+OnUnitActiveSec=25h
+RandomizedDelaySec=0
+AccuracySec=1min
+Unit=arona-token-retry.service
+
+[Install]
+WantedBy=timers.target
