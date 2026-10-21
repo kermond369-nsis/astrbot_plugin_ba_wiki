@@ -457,7 +457,7 @@ kw, opts = cmd_mod.parse_stats_query(
 check("参数解析：名字干净", kw, "爱丽丝（临战）")
 check("参数解析：装备分槽", opts.get("equip_tiers"), "10/10/10")
 check("参数解析：能力解放分项", opts.get("potential"), "25/25/25")
-check("参数解析：好感超上限夹到 50", opts.get("bond_level"), 50)
+check("参数解析：好感原样保留（上限在计算层处理）", opts.get("bond_level"), 150)
 check("参数解析：专精阶位", opts.get("ue_tier"), 4)
 check("参数解析：等级", opts.get("level"), 90)
 
@@ -466,6 +466,16 @@ check("纯名字不被参数正则误吃", kw2, "爱丽丝（临战）")
 kw3, _o3 = cmd_mod.parse_stats_query("临战爱丽丝")
 check("前缀形态词不被误吃", kw3, "临战爱丽丝")
 
+# 好感：请求值可高于星级上限，数值按上限算
+kwb, optb = cmd_mod.parse_stats_query("爱丽丝（临战） 好感150")
+check("好感三位数能解析", optb.get("bond_level"), 150)
+
+FAKE = {"name": "X", "build": {"level": 90, "star": 5, "equipment_tiers": [10, 10, 9],
+        "unique_weapon": False, "weapon_level": 60, "weapon_cap": 60, "ue_tier": 4,
+        "bond_level": 50, "bond_requested": 150,
+        "potential": {"MaxHP": 0, "AttackPower": 25, "HealPower": 0}},
+        "profile": {}, "stats": {}}
+check("好感超上限时口径写明", "按上限 50 计" in ren_mod.stats_text(FAKE), True)
 msg = ren_mod.skill_not_found("没查到该学生：形态词或叫法不认识", ["爱丽丝（临战）"])
 check("提示只出现一次想找", msg.count("想找"), 1)
 check("提示仍带候选", "爱丽丝（临战）" in msg, True)

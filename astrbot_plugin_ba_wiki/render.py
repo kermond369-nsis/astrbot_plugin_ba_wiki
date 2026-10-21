@@ -67,7 +67,8 @@ def stats_text(payload: dict) -> str:
         "专武" if build.get("unique_weapon") else "无专武",
         ("专%d（武器 Lv%d/%d）" % (build.get("ue_tier", 0), build.get("weapon_level", 0), build.get("weapon_cap", 0)))
         if build.get("ue_tier") else f"武器 Lv{build.get('weapon_level', 0)}",
-        f"好感 {build.get('bond_level', 0)}",
+        ("好感 %d（面板按上限 %d 计）" % (build.get("bond_requested", build.get("bond_level", 0)), build.get("bond_level", 0)))
+        if build.get("bond_requested", 0) > build.get("bond_level", 0) else f"好感 {build.get('bond_level', 0)}",
         "能力解放 " + _potential_text(build.get("potential")),
     ]
     terrain = profile.get("terrain") or {}

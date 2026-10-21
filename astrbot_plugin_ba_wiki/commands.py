@@ -93,9 +93,10 @@ def parse_stats_query(text: str) -> tuple[str, dict]:
         out["equip_tiers"] = m.group(1)
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"好感\s*(\d{1,3})", t)
+    m = re.search(r"好感\s*(\d{1,4})", t)
     if m:
-        out["bond_level"] = max(0, min(int(m.group(1)), 50))
+        # 好感等级本身可以很高（实用上限约 400），面板加成另有星级上限，这里只做合理性夹取
+        out["bond_level"] = max(0, min(int(m.group(1)), 999))
         t = t.replace(m.group(0), " ")
 
     m = re.search(r"武器\s*(\d{1,3})", t)

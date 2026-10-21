@@ -163,7 +163,8 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
         weapon_level = stats_src.REGION["weapon_max_level"]
     weapon_level, ue_tier = stats_src.clamp_weapon_level(weapon_level, ue_tier)
     weapon_cap = stats_src.WEAPON_CAP_BY_TIER.get(ue_tier, 0)
-    bond_level = max(0, min(int(bond_level), stats_src.REGION["bond_max_level"]))
+    bond_requested = max(0, int(bond_level))
+    bond_level = max(0, min(bond_requested, stats_src.BOND_MAX_BY_STAR[star - 1]))
 
     table = schaledb.equipment(data_dir)
     totals = stats_src.compute(
@@ -194,6 +195,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "weapon_cap": weapon_cap,
             "ue_tier": ue_tier,
             "bond_level": totals.get("bond", 0),
+            "bond_requested": bond_requested,
             "potential": totals.get("potential", {}),
         },
         "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
