@@ -470,12 +470,25 @@ check("前缀形态词不被误吃", kw3, "临战爱丽丝")
 kwb, optb = cmd_mod.parse_stats_query("爱丽丝（临战） 好感150")
 check("好感三位数能解析", optb.get("bond_level"), 150)
 
+# 延伸皮肤好感：本体按星级上限，延伸各按 BondMaxLevel
+REC2 = dict(REC)
+REC2["FavorAlts"] = [9001, 9002]
+ALT = {"IsReleased": [True, True, True], "FavorStatType": ["MaxHP", "AttackPower"],
+       "FavorStatValue": [[3, 0], [5, 0], [7, 48], [9, 58], [2, 10], [3, 15], [6, 25]]}
+p3 = stats_mod.compute(REC2, {}, level=90, star=3, equip_tiers=[0, 0, 0], ue=False,
+                       weapon_level=0, bond_level=50, potential=0,
+                       students={9001: ALT, 9002: ALT})
+check("延伸好感版本数", p3["bond_variants"], 2)
+check("延伸好感本体按星级上限", p3["bond"], 20)
+check("延伸好感单份按 50", p3["bond_alt_level"], 50)
+check("延伸好感合计 120", p3["bond_total"], 120)
 FAKE = {"name": "X", "build": {"level": 90, "star": 5, "equipment_tiers": [10, 10, 9],
         "unique_weapon": False, "weapon_level": 60, "weapon_cap": 60, "ue_tier": 4,
         "bond_level": 50, "bond_requested": 150,
+        "bond_alt_level": 50, "bond_variants": 2, "bond_total": 150,
         "potential": {"MaxHP": 0, "AttackPower": 25, "HealPower": 0}},
         "profile": {}, "stats": {}}
-check("好感超上限时口径写明", "按上限 50 计" in ren_mod.stats_text(FAKE), True)
+check("好感口径标出延伸合计", "延伸2×50" in ren_mod.stats_text(FAKE), True)
 msg = ren_mod.skill_not_found("没查到该学生：形态词或叫法不认识", ["爱丽丝（临战）"])
 check("提示只出现一次想找", msg.count("想找"), 1)
 check("提示仍带候选", "爱丽丝（临战）" in msg, True)

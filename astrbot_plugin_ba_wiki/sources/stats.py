@@ -333,11 +333,19 @@ def bond_bonus(record: dict, level: int) -> dict[str, int]:
     return {kinds[0]: stat1, kinds[1]: stat2}
 
 
-def add_bond(stats: Stats, record: dict, level: int, students: dict | None = None) -> None:
+def add_bond(stats: Stats, record: dict, level: int, students: dict | None = None,
+             alt_level: int | None = None) -> int:
+    """好感加成：本体按星级上限，延伸皮肤按 BondMaxLevel（SchaleDB 的滑块各管各的）。
+
+    返回实际计入的延伸皮肤数量（不含本体）。
+    """
     for stat, value in bond_bonus(record, level).items():
         stats.add_buff(stat, value)
     if not students:
-        return
+        return 0
+    if alt_level is None:
+        alt_level = level
+    used = 0
     for alt_id in record.get("FavorAlts") or []:
         alt = students.get(alt_id) or students.get(str(alt_id))
         if not alt:
@@ -345,8 +353,10 @@ def add_bond(stats: Stats, record: dict, level: int, students: dict | None = Non
         released = alt.get("IsReleased") or []
         if len(released) < 3 or not released[2]:
             continue
-        for stat, value in bond_bonus(alt, level).items():
+        used += 1
+        for stat, value in bond_bonus(alt, alt_level).items():
             stats.add_buff(stat, value)
+    return used
 
 
 DISPLAY_STATS = (
@@ -372,10 +382,12 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     else:
         one = max(0, min(int(potential), POTENTIAL_MAX))
         levels = {k: one for k in POTENTIAL_STATS}
-    bond_level = max(0, min(int(bond_level), BOND_MAX_BY_STAR[star - 1]))
+    bond_requested = max(0, int(bond_level))
+    bond_level = min(bond_requested, BOND_MAX_BY_STAR[star - 1])
+    bond_alt_level = min(bond_requested, REGION["bond_max_level"])
 
     stats = from_record(record, level, star)
-    add_bond(stats, record, bond_level, students)
+    bond_variants = add_bond(stats, record, bond_level, students, bond_alt_level)
 
     tiers = list(equip_tiers) if equip_tiers is not None else list(REGION["equipment_max_level"])
     equipment = record.get("Equipment") or []
@@ -401,6 +413,9 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     totals["gear"] = gear_applied
     totals["potential"] = levels
     totals["bond"] = bond_level
+    totals["bond_alt_level"] = bond_alt_level
+    totals["bond_variants"] = bond_variants
+    totals["bond_total"] = bond_level + bond_alt_level * bond_variants
     return totals
 
 

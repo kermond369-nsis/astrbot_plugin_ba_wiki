@@ -53,6 +53,24 @@ def _potential_text(value) -> str:
         return "0"
 
 
+def _bond_text(build: dict) -> str:
+    """好感：本体受星级限制，延伸皮肤各按 50 上限，合计才是真正生效的等级数。"""
+    main = int(build.get("bond_level", 0) or 0)
+    alt = int(build.get("bond_alt_level", 0) or 0)
+    variants = int(build.get("bond_variants", 0) or 0)
+    total = int(build.get("bond_total", main) or main)
+    requested = int(build.get("bond_requested", main) or main)
+    if variants:
+        text = "好感 %d（本体%d + 延伸%d×%d = %d）" % (requested, main, variants, alt, total)
+    else:
+        text = "好感 %d" % main
+    if requested > main and not variants:
+        text += "（本体按星级上限 %d 计）" % main
+    elif requested > alt and variants:
+        text += "（单份按上限 %d 计）" % alt
+    return text
+
+
 def stats_text(payload: dict) -> str:
     """面板输出：口径行 + 类型行 + 数值表 + 来源行。"""
     build = payload.get("build") or {}
@@ -67,8 +85,7 @@ def stats_text(payload: dict) -> str:
         "专武" if build.get("unique_weapon") else "无专武",
         ("专%d（武器 Lv%d/%d）" % (build.get("ue_tier", 0), build.get("weapon_level", 0), build.get("weapon_cap", 0)))
         if build.get("ue_tier") else f"武器 Lv{build.get('weapon_level', 0)}",
-        ("好感 %d（面板按上限 %d 计）" % (build.get("bond_requested", build.get("bond_level", 0)), build.get("bond_level", 0)))
-        if build.get("bond_requested", 0) > build.get("bond_level", 0) else f"好感 {build.get('bond_level', 0)}",
+        _bond_text(build),
         "能力解放 " + _potential_text(build.get("potential")),
     ]
     terrain = profile.get("terrain") or {}
