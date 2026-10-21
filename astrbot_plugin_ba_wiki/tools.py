@@ -113,8 +113,8 @@ def _parse_levels(text: str, size: int, lo: int, hi: int) -> list[int] | None:
 
 def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: int = 5,
                         equip_tier: int = 0, equip_tiers: str = "", unique_weapon: bool = True,
-                        weapon_level: int | None = None, bond_level: int = 50,
-                        potential: str | int = "") -> dict:
+                        weapon_level: int | None = None, ue_tier: int = 0,
+                        bond_level: int = 50, potential: str | int = "") -> dict:
     """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
 
     与 build_skill_payload 一样返回喂给模型的 JSON，形状稳定。
@@ -159,7 +159,10 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "MaxHP": parsed[0], "AttackPower": parsed[1], "HealPower": parsed[2],
         }
 
-    weapon_level = stats_src.REGION["weapon_max_level"] if weapon_level is None else int(weapon_level)
+    if weapon_level is None:
+        weapon_level = stats_src.REGION["weapon_max_level"]
+    weapon_level, ue_tier = stats_src.clamp_weapon_level(weapon_level, ue_tier)
+    weapon_cap = stats_src.WEAPON_CAP_BY_TIER.get(ue_tier, 0)
     bond_level = max(0, min(int(bond_level), stats_src.REGION["bond_max_level"]))
 
     table = schaledb.equipment(data_dir)
@@ -188,6 +191,8 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "equipment_tiers": tiers,
             "unique_weapon": bool(totals.get("gear")),
             "weapon_level": weapon_level,
+            "weapon_cap": weapon_cap,
+            "ue_tier": ue_tier,
             "bond_level": totals.get("bond", 0),
             "potential": totals.get("potential", {}),
         },
@@ -210,6 +215,8 @@ class BAToolsMixin:
         equip_tier: int = 0,
         equip_tiers: str = "",
         unique_weapon: bool = True,
+        weapon_level: int = -1,
+        ue_tier: int = 0,
         potential: str = "",
     ) -> str:
         """查询《蔚蓝档案》角色的完整面板数值（生命值 / 攻击力 / 防御力 / 治愈力 / 命中 / 闪避 / 暴击 / 射程等）。
@@ -228,6 +235,10 @@ class BAToolsMixin:
             star(int): 星级 1~5，默认 5（专武需要 5★ 才有）。
             equip_tier(int): 三个装备槽统一档位 1~10；0 表示按国服上限（10/10/9）。
             equip_tiers(string): 分槽档位，如「10/9/9」（按装备槽顺序），优先级高于 equip_tier。
+            weapon_level(int): 专武等级；-1 表示按国服上限（50）。上限由专精阶位决定：
+                专1=30、专2=40、专3=50、专4=60。
+            ue_tier(int): 专精阶位 0~4（专1~专4）。0 表示由 weapon_level 自动推导，
+                超出该阶上限的等级会被夹到上限。
             potential(string): 能力解放等级，三项各自独立，如「0/25/0」=生命0/攻击25/治愈0；
                 单个数字表示三项同级；留空表示 90 级时按满级 25、否则 0。
             unique_weapon(bool): 是否计入专武，默认 True；角色未实装专武时自动忽略。
@@ -242,7 +253,8 @@ class BAToolsMixin:
             result = await asyncio.to_thread(
                 build_stats_payload, self.data_dir, student,
                 level=level, star=star, equip_tier=equip_tier, equip_tiers=equip_tiers,
-                unique_weapon=unique_weapon, potential=potential,
+                unique_weapon=unique_weapon, ue_tier=ue_tier,
+                weapon_level=None if weapon_level < 0 else weapon_level, potential=potential,
             )
         except FileNotFoundError:
             return json.dumps({"ok": False, "reason": "本地装备数据缺失且下载失败，请检查能否访问 schaledb.com"},

@@ -411,6 +411,13 @@ check("好感上限随星级 1★=10", stats_mod.BOND_MAX_BY_STAR[0], 10)
 check("好感上限随星级 5★=50", stats_mod.BOND_MAX_BY_STAR[4], 50)
 check("装备槽解锁等级", stats_mod.EQUIP_UNLOCK_LEVEL, (0, 15, 35))
 
+check("专1 武器上限 30", stats_mod.WEAPON_CAP_BY_TIER[1], 30)
+check("专4 武器上限 60", stats_mod.WEAPON_CAP_BY_TIER[4], 60)
+check("等级反推阶位 30", stats_mod.weapon_tier_for_level(30), 1)
+check("等级反推阶位 60", stats_mod.weapon_tier_for_level(60), 4)
+check("专2 装 60 级会被夹到 40", stats_mod.clamp_weapon_level(60, 2), (40, 2))
+check("只给 60 级自动推成专4", stats_mod.clamp_weapon_level(60, 0), (60, 4))
+
 s_basic = stats_mod.from_record(REC, 90, 1)
 check("基础面板生命", s_basic.total("MaxHP"), 9091)
 check("会心伤害默认值", s_basic.total("CriticalDamageRate"), 20000)

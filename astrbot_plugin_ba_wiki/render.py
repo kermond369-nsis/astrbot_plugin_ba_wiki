@@ -31,9 +31,10 @@ def main_help() -> str:
 
 def stats_usage() -> str:
     return (
-        "用法：/ba 面板 <学生> [Lv90] [5星] [装备10/9/9] [武器60] [能力解放0/25/0] [无专武]\n"
+        "用法：/ba 面板 <学生> [Lv90] [5星] [专4] [武器60] [装备10/9/9] [能力解放0/25/0] [无专武]\n"
         "例：/ba 面板 若藻\n"
-        "    /ba 面板 ツムギ Lv90 5星 装备10/9/9 武器60 能力解放0/25/0\n"
+        "    /ba 面板 ツムギ Lv90 5星 专4 武器60 装备10/9/9 能力解放0/25/0\n"
+        "专N 决定武器等级上限：专1=30 / 专2=40 / 专3=50 / 专4=60\n"
         "能力解放顺序：生命/攻击/治愈；T10 表示三槽统一 T10\n"
         "默认口径：Lv90 / 5★ / 装备按国服上限 / 专武 / 武器 Lv50 / 好感 50 / 能力解放 25"
     )
@@ -64,7 +65,8 @@ def stats_text(payload: dict) -> str:
         f"{build.get('star', '-')}★",
         f"装备 {tier_txt}",
         "专武" if build.get("unique_weapon") else "无专武",
-        f"武器 Lv{build.get('weapon_level', 0)}",
+        ("专%d（武器 Lv%d/%d）" % (build.get("ue_tier", 0), build.get("weapon_level", 0), build.get("weapon_cap", 0)))
+        if build.get("ue_tier") else f"武器 Lv{build.get('weapon_level', 0)}",
         f"好感 {build.get('bond_level', 0)}",
         "能力解放 " + _potential_text(build.get("potential")),
     ]

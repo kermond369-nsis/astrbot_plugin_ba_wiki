@@ -103,6 +103,33 @@ EQUIP_UNLOCK_LEVEL = (0, 15, 35)
 # 潜在能力（能力解放）：只加这三项，且要求等级 90
 POTENTIAL_STATS = ("MaxHP", "AttackPower", "HealPower")
 POTENTIAL_MAX = 25
+
+# 专武（Gear）阶位 -> 武器等级上限：专1 解锁（30），每阶 +10
+WEAPON_CAP_BY_TIER = {0: 0, 1: 30, 2: 40, 3: 50, 4: 60}
+WEAPON_TIER_MAX = max(WEAPON_CAP_BY_TIER)
+
+
+def weapon_tier_for_level(level: int) -> int:
+    """由武器等级反推所需专精阶位（30->1, 40->2, 50->3, 60->4）。"""
+    level = max(0, int(level or 0))
+    if level <= 0:
+        return 0
+    for tier in (1, 2, 3, 4):
+        if level <= WEAPON_CAP_BY_TIER[tier]:
+            return tier
+    return WEAPON_TIER_MAX
+
+
+def clamp_weapon_level(level: int, tier: int) -> tuple[int, int]:
+    """把武器等级夹到专精阶位允许的上限，返回 (等级, 实际阶位)。"""
+    level = max(0, min(int(level or 0), WEAPON_CAP_BY_TIER[WEAPON_TIER_MAX]))
+    if level == 0:
+        return 0, 0
+    tier = max(0, min(int(tier or 0), WEAPON_TIER_MAX))
+    if tier == 0:
+        tier = weapon_tier_for_level(level)
+    cap = WEAPON_CAP_BY_TIER[tier]
+    return min(level, cap), tier
 TERRAIN_VALUE = {4: "S", 3: "A", 2: "B", 1: "C", 0: "D"}
 
 

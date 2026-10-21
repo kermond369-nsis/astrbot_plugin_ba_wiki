@@ -246,7 +246,7 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
 
     async def _stats(self, keyword: str, *, level: int = 90, star: int = 5,
                      equip_tier: int = 0, equip_tiers: str = "", unique_weapon: bool = True,
-                     weapon_level: int | None = None, potential: str = "",
+                     weapon_level: int | None = None, ue_tier: int = 0, potential: str = "",
                      bond_level: int = 50) -> dict:
         """面板查询：等级/星级/装备/专武/能力解放都走这里。"""
         await self._ensure_ready()
@@ -254,8 +254,8 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
             return await asyncio.to_thread(
                 tools_layer.build_stats_payload, self.data_dir, keyword,
                 level=level, star=star, equip_tier=equip_tier, equip_tiers=equip_tiers,
-                unique_weapon=unique_weapon, weapon_level=weapon_level, potential=potential,
-                bond_level=bond_level,
+                unique_weapon=unique_weapon, weapon_level=weapon_level, ue_tier=ue_tier,
+                potential=potential, bond_level=bond_level,
             )
         except FileNotFoundError:
             return {"ok": False, "reason": "本地数据缺失且下载失败，请检查服务器能否访问 schaledb.com"}
