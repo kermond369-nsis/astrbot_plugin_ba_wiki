@@ -145,9 +145,10 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     level = max(1, min(int(level or 90), stats_src.REGION["student_max_level"]))
     star = max(1, min(int(star or 5), 5))
 
+    table = schaledb.equipment(data_dir)
     tiers = _parse_levels(equip_tiers, 3, 0, 10)
     if tiers is None:
-        tiers = list(stats_src.REGION["equipment_max_level"])
+        tiers = stats_src.default_equip_tiers(student, table)
         if equip_tier:
             tiers = [max(0, min(int(equip_tier), 10))] * 3
 
@@ -166,7 +167,6 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     weapon_cap = stats_src.WEAPON_CAP_BY_TIER.get(ue_tier, 0)
     bond_requested = max(0, int(bond_level))
 
-    table = schaledb.equipment(data_dir)
     totals = stats_src.compute(
         student, table, level=level, star=star, equip_tiers=tiers,
         ue=unique_weapon, weapon_level=weapon_level, bond_level=bond_level,

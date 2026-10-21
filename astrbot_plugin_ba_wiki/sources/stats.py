@@ -261,6 +261,36 @@ def from_record(record: dict, level: int, star: int) -> Stats:
     return s
 
 
+def max_tier_for_category(equipment_table: dict, category: str, fallback: int = 1) -> int:
+    """该装备类别在当前区服（国服=IsReleased[2]）已实装的最高档。"""
+    best = 0
+    for item in equipment_table.values():
+        if item.get("Category") != category:
+            continue
+        tier = int(item.get("Tier") or 0)
+        released = item.get("IsReleased") or []
+        if tier and len(released) >= 3 and released[2]:
+            best = max(best, tier)
+    return best or fallback
+
+
+def default_equip_tiers(record: dict, equipment_table: dict) -> list[int]:
+    """默认装备档 = 全部吃满（数据里该类别存在的最高档，当前是 T10）。
+
+    想要「国服现实口径」（第三槽手表/挂饰/项链的 T10 尚未实装）时显式传 装备10/10/9。
+    """
+    tiers = []
+    for category in (record.get("Equipment") or [])[:3]:
+        best = 0
+        for item in equipment_table.values():
+            if item.get("Category") == category:
+                best = max(best, int(item.get("Tier") or 0))
+        tiers.append(best or 10)
+    while len(tiers) < 3:
+        tiers.append(0)
+    return tiers
+
+
 def add_equipment(stats: Stats, equipment_table: dict, category: str, tier: int) -> None:
     """装备：tier 为档位（1..10）；取该档装备在满级时的 StatValue。"""
     if not category or tier is None or int(tier) <= 0:
@@ -389,7 +419,7 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     stats = from_record(record, level, star)
     bond_variants = add_bond(stats, record, bond_level, students, bond_alt_level)
 
-    tiers = list(equip_tiers) if equip_tiers is not None else list(REGION["equipment_max_level"])
+    tiers = list(equip_tiers) if equip_tiers is not None else default_equip_tiers(record, equipment_table)
     equipment = record.get("Equipment") or []
     for i, category in enumerate(equipment[:3]):
         if level < EQUIP_UNLOCK_LEVEL[i]:

@@ -478,6 +478,9 @@ ALT = {"IsReleased": [True, True, True], "FavorStatType": ["MaxHP", "AttackPower
 p3 = stats_mod.compute(REC2, {}, level=90, star=3, equip_tiers=[0, 0, 0], ue=False,
                        weapon_level=0, bond_level=50, potential=0,
                        students={9001: ALT, 9002: ALT})
+# 默认装备：全吃满（数据里该类别最高档）
+MINI = {i: {"Category": c, "Tier": 10} for i, c in enumerate(["Hat", "Hairpin", "Watch"])}
+check("默认装备吃满 T10", stats_mod.default_equip_tiers({"Equipment": ["Hat", "Hairpin", "Watch"]}, MINI), [10, 10, 10])
 check("延伸好感版本数", p3["bond_variants"], 2)
 check("延伸好感本体按星级上限", p3["bond"], 20)
 check("延伸好感单份按 50", p3["bond_alt_level"], 50)
