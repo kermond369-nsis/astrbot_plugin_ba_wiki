@@ -140,7 +140,7 @@ commands.py  /ba 分发
 directory.py 名字解析（判定链 + 显示策略）
 skills.py    技能数值（纯函数）
 render.py    所有输出文本
-sources/     schaledb.py（ETag 刷新）、kivo.py（补充名 + 绰号）
+sources/     schaledb.py（ETag 刷新 + 装备表）、kivo.py（补充名 + 绰号）、stats.py（面板数值）
 clients/     arona.py（什亭之匣）、bilibili.py（B 站搜索）
 ```
 
