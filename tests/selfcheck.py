@@ -430,7 +430,15 @@ check("平坦加成先加后乘", s3.total("MaxHP"), 10091)
 p = stats_mod.compute(REC, {}, level=90, star=1, equip_tiers=[0, 0, 0], ue=False,
                       weapon_level=0, bond_level=0, potential=0)
 check("compute 不装备不专武", p["MaxHP"], 9091)
-check("compute 口径回填", (p["potential"], p["bond"]), (0, 0))
+check("compute 口径回填", (p["potential"]["MaxHP"], p["bond"]), (0, 0))
+
+# 分项能力解放：只解放攻击
+p2 = stats_mod.compute(REC, {}, level=90, star=1, equip_tiers=[0, 0, 0], ue=False,
+                     weapon_level=0, bond_level=0,
+                     potential={"MaxHP": 0, "AttackPower": 25, "HealPower": 0})
+check("分项能力解放：生命不变", p2["MaxHP"], 9091)
+check("分项能力解放：攻击提升", p2["AttackPower"] > 909, True)
+check("分项能力解放：治愈不变", p2["HealPower"], 727)
 
 # ---------------------------------------------------------------- 汇总
 print()

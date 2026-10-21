@@ -340,7 +340,11 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     level = max(1, min(int(level), REGION["student_max_level"]))
     if potential is None:
         potential = POTENTIAL_MAX if level >= REGION["student_max_level"] else 0
-    potential = max(0, min(int(potential), POTENTIAL_MAX))
+    if isinstance(potential, dict):
+        levels = {k: max(0, min(int(potential.get(k, 0) or 0), POTENTIAL_MAX)) for k in POTENTIAL_STATS}
+    else:
+        one = max(0, min(int(potential), POTENTIAL_MAX))
+        levels = {k: one for k in POTENTIAL_STATS}
     bond_level = max(0, min(int(bond_level), BOND_MAX_BY_STAR[star - 1]))
 
     stats = from_record(record, level, star)
@@ -359,16 +363,16 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
         gear_applied = add_gear(stats, record)
     add_weapon(stats, record.get("Weapon") or {}, weapon_level)
 
-    if potential:
-        for stat in POTENTIAL_STATS:
-            value = potential_bonus(record, stat, level, potential)
+    for stat, lv in levels.items():
+        if lv:
+            value = potential_bonus(record, stat, level, lv)
             if value:
                 stats.add_buff(stat + "_Base", value)
 
     totals = {stat: stats.total(stat) for stat in DISPLAY_STATS}
     totals["stats"] = stats
     totals["gear"] = gear_applied
-    totals["potential"] = potential
+    totals["potential"] = levels
     totals["bond"] = bond_level
     return totals
 

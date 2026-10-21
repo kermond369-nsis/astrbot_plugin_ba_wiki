@@ -83,10 +83,29 @@ def parse_stats_query(text: str) -> tuple[str, dict]:
         out["equip_tier"] = max(1, min(int(m.group(1)), 10))
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"能力解放\s*(\d{1,2})", t)
+    m = re.search(r"能力解放\s*([\d/]{1,12})", t)
     if m:
-        out["potential"] = max(0, min(int(m.group(1)), 25))
+        out["potential"] = m.group(1)
         t = t.replace(m.group(0), " ")
+
+    m = re.search(r"装备\s*([\d/]{1,12})", t)
+    if m:
+        out["equip_tiers"] = m.group(1)
+        t = t.replace(m.group(0), " ")
+
+    m = re.search(r"好感\s*(\d{1,2})", t)
+    if m:
+        out["bond_level"] = max(0, min(int(m.group(1)), 50))
+        t = t.replace(m.group(0), " ")
+
+    m = re.search(r"武器\s*(\d{1,2})", t)
+    if m:
+        out["weapon_level"] = max(0, min(int(m.group(1)), 90))
+        t = t.replace(m.group(0), " ")
+
+    # 专武星级/技能等级只影响技能，不影响面板，接受但忽略
+    for pat in (r"专\s*\d", r"技能全满", r"全满"):
+        t = re.sub(pat, " ", t)
 
     if "无专武" in t or "不带专武" in t:
         out["unique_weapon"] = False

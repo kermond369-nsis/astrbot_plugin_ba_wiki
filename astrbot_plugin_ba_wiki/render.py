@@ -31,11 +31,25 @@ def main_help() -> str:
 
 def stats_usage() -> str:
     return (
-        "用法：/ba 面板 <学生> [Lv90] [5星] [T10] [能力解放25] [无专武]\n"
+        "用法：/ba 面板 <学生> [Lv90] [5星] [装备10/9/9] [武器60] [能力解放0/25/0] [无专武]\n"
         "例：/ba 面板 若藻\n"
-        "    /ba 面板 ツムギ Lv90 5星 T10\n"
+        "    /ba 面板 ツムギ Lv90 5星 装备10/9/9 武器60 能力解放0/25/0\n"
+        "能力解放顺序：生命/攻击/治愈；T10 表示三槽统一 T10\n"
         "默认口径：Lv90 / 5★ / 装备按国服上限 / 专武 / 武器 Lv50 / 好感 50 / 能力解放 25"
     )
+
+
+def _potential_text(value) -> str:
+    """能力解放：三项各自独立，全同则只写一个数字。"""
+    if isinstance(value, dict):
+        nums = [int(value.get(k, 0) or 0) for k in ("MaxHP", "AttackPower", "HealPower")]
+        if len(set(nums)) == 1:
+            return str(nums[0])
+        return "生命%d/攻击%d/治愈%d" % tuple(nums)
+    try:
+        return str(int(value or 0))
+    except (TypeError, ValueError):
+        return "0"
 
 
 def stats_text(payload: dict) -> str:
@@ -52,7 +66,7 @@ def stats_text(payload: dict) -> str:
         "专武" if build.get("unique_weapon") else "无专武",
         f"武器 Lv{build.get('weapon_level', 0)}",
         f"好感 {build.get('bond_level', 0)}",
-        f"能力解放 {build.get('potential', 0)}",
+        "能力解放 " + _potential_text(build.get("potential")),
     ]
     terrain = profile.get("terrain") or {}
     type_line = (

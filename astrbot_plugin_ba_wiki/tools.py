@@ -97,10 +97,24 @@ def build_skill_payload(data_dir: str, keyword: str, skill: str = "", level: int
     return base
 
 
+def _parse_levels(text: str, size: int, lo: int, hi: int) -> list[int] | None:
+    """把 "10/9/9"、"9"、"0/25/0" 这类参数解析成长度 size 的列表。"""
+    if not text:
+        return None
+    parts = [p for p in str(text).replace("-", "/").split("/") if p.strip() != ""]
+    try:
+        nums = [max(lo, min(int(p), hi)) for p in parts]
+    except ValueError:
+        return None
+    if len(nums) == 1:
+        return nums * size
+    return (nums + [nums[-1]] * size)[:size]
+
+
 def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: int = 5,
-                        equip_tier: int = 0, unique_weapon: bool = True,
+                        equip_tier: int = 0, equip_tiers: str = "", unique_weapon: bool = True,
                         weapon_level: int | None = None, bond_level: int = 50,
-                        potential: int = -1) -> dict:
+                        potential: str | int = "") -> dict:
     """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
 
     与 build_skill_payload 一样返回喂给模型的 JSON，形状稳定。
@@ -130,9 +144,21 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     student = students.get(sid) or next((s for s in students.values() if str(s.get("Id")) == sid), {})
     level = max(1, min(int(level or 90), stats_src.REGION["student_max_level"]))
     star = max(1, min(int(star or 5), 5))
-    tiers = list(stats_src.REGION["equipment_max_level"])
-    if equip_tier:
-        tiers = [max(1, min(int(equip_tier), 10))] * 3
+
+    tiers = _parse_levels(equip_tiers, 3, 0, 10)
+    if tiers is None:
+        tiers = list(stats_src.REGION["equipment_max_level"])
+        if equip_tier:
+            tiers = [max(0, min(int(equip_tier), 10))] * 3
+
+    if isinstance(potential, int):
+        pot = None if potential < 0 else potential
+    else:
+        parsed = _parse_levels(potential, 3, 0, stats_src.POTENTIAL_MAX)
+        pot = None if parsed is None else {
+            "MaxHP": parsed[0], "AttackPower": parsed[1], "HealPower": parsed[2],
+        }
+
     weapon_level = stats_src.REGION["weapon_max_level"] if weapon_level is None else int(weapon_level)
     bond_level = max(0, min(int(bond_level), stats_src.REGION["bond_max_level"]))
 
@@ -140,7 +166,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     totals = stats_src.compute(
         student, table, level=level, star=star, equip_tiers=tiers,
         ue=unique_weapon, weapon_level=weapon_level, bond_level=bond_level,
-        potential=None if potential < 0 else potential, students=students,
+        potential=pot, students=students,
     )
     profile = stats_src.labels(student)
     by_lang = names.get(sid, {})
@@ -163,7 +189,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "unique_weapon": bool(totals.get("gear")),
             "weapon_level": weapon_level,
             "bond_level": totals.get("bond", 0),
-            "potential": totals.get("potential", 0),
+            "potential": totals.get("potential", {}),
         },
         "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
         "note": "数值含等级/星级/装备/专武/武器/好感/能力解放（潜在能力）；地形适性 S~D 对应 4~0。",
@@ -182,8 +208,9 @@ class BAToolsMixin:
         level: int = 90,
         star: int = 5,
         equip_tier: int = 0,
+        equip_tiers: str = "",
         unique_weapon: bool = True,
-        potential: int = -1,
+        potential: str = "",
     ) -> str:
         """查询《蔚蓝档案》角色的完整面板数值（生命值 / 攻击力 / 防御力 / 治愈力 / 命中 / 闪避 / 暴击 / 射程等）。
 
@@ -199,8 +226,10 @@ class BAToolsMixin:
             student(string): 角色名，任何区服说法都行，如「若藻」「ワカモ」「ツムギ」「10033」。
             level(int): 等级，默认 90（国服上限）。
             star(int): 星级 1~5，默认 5（专武需要 5★ 才有）。
-            equip_tier(int): 装备档位 1~10，0 表示按国服上限（各槽独立上限 10/10/9）。
-            potential(int): 能力解放（潜在能力）等级 0~25；-1 表示 90 级时按满级 25、否则 0。
+            equip_tier(int): 三个装备槽统一档位 1~10；0 表示按国服上限（10/10/9）。
+            equip_tiers(string): 分槽档位，如「10/9/9」（按装备槽顺序），优先级高于 equip_tier。
+            potential(string): 能力解放等级，三项各自独立，如「0/25/0」=生命0/攻击25/治愈0；
+                单个数字表示三项同级；留空表示 90 级时按满级 25、否则 0。
             unique_weapon(bool): 是否计入专武，默认 True；角色未实装专武时自动忽略。
 
         Returns:
@@ -212,8 +241,8 @@ class BAToolsMixin:
         try:
             result = await asyncio.to_thread(
                 build_stats_payload, self.data_dir, student,
-                level=level, star=star, equip_tier=equip_tier, unique_weapon=unique_weapon,
-                potential=potential,
+                level=level, star=star, equip_tier=equip_tier, equip_tiers=equip_tiers,
+                unique_weapon=unique_weapon, potential=potential,
             )
         except FileNotFoundError:
             return json.dumps({"ok": False, "reason": "本地装备数据缺失且下载失败，请检查能否访问 schaledb.com"},
