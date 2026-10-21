@@ -7,7 +7,7 @@
 | 文件 | 用途 |
 |---|---|
 | `docker/` | **arona 中转镜像**（token 注入，纯 HTTP，TLS 交给前置反代）：配置集中在 `docker/config/`，`docker compose up -d --build` 即起；见 [docker/README.md](docker/README.md) |
-| `compose-lan.yml` | AstrBot主机 上的 AstrBot（早期 Docker 方案，**当前线上不是用它**，线上是 systemd + PyPI 安装） |
+| `compose-lan.yml` | AstrBot 主机上的旧 Docker 方案（早期 Docker 方案，**当前线上不是用它**，线上是 systemd + PyPI 安装） |
 | `arona-proxy.service` | 云服务器上的 arona HTTPS 转发器 —— **LEGACY / 已弃用**，2026-10-18 起插件直连（见 [docs/MIGRATE-TO-LOCAL.md](../docs/MIGRATE-TO-LOCAL.md)），仅作回滚备件 |
 | `backup.sh` | 数据备份（停服打包再拉起） |
 | `arona-token-retry.service/.timer` | 定期尝试恢复 arona 真 token —— **当前已 `disable`**：实测每次试探都可能把 24h 封禁重新计时，别开着（见 MIGRATE-TO-LOCAL.md 第十节） |
@@ -15,7 +15,7 @@
 ## 线上实际形态
 
 ```
-AstrBot主机 <AstrBot主机IP>
+AstrBot 主机（<主机IP>）
   AstrBot      systemd: astrbot      （uv tool install astrbot，非 Docker）
   数据          /opt/astrbot-qq/data
   面板          http://<AstrBot主机IP>:6185
@@ -56,7 +56,7 @@ WantedBy=multi-user.target
 
 | 文件 | 内容 | 放哪 |
 |---|---|---|
-| `arona_token.txt` | `<QQ号>:<密钥>`（与 AstrBot主机 出口 IP 绑定） | 插件数据目录，权限 600 |
+| `arona_token.txt` | `<QQ号>:<密钥>`（与 该主机出口 IP 绑定） | 插件数据目录，权限 600 |
 | `.env` | `NAPCAT_UID/GID`、`NAPCAT_WEBUI_TOKEN` | 部署目录 |
 
 > 只有重新架转发机（回滚方案）时才还需要 `arona_proxy.json` + 自签证书 `arona-proxy.crt/.key`。

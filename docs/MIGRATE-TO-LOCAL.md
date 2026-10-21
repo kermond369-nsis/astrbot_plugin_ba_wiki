@@ -26,7 +26,7 @@
 于是有了这套：
 
 ```
-AstrBot主机 (AstrBot)  ──HTTPS + X-Proxy-Key──▶  云服务器 :8443  ──固定 IP──▶  api.arona.icu
+AstrBot 主机  ──HTTPS + X-Proxy-Key──▶  云服务器 :8443  ──固定 IP──▶  api.arona.icu
 ```
 
 云服务器只做一件事：用**它自己的固定 IP** 去调 arona，顺便注入 token。
@@ -34,7 +34,7 @@ AstrBot主机 (AstrBot)  ──HTTPS + X-Proxy-Key──▶  云服务器 :8443 
 ## 二、现在的目标
 
 ```
-AstrBot主机 (AstrBot)  ──HTTPS──▶  api.arona.icu
+AstrBot 主机  ──HTTPS──▶  api.arona.icu
 ```
 
 直连，中间什么都不留。插件本身**已经支持直连**，不需要改代码——切换只靠数据目录里两个文件。
@@ -89,7 +89,7 @@ curl -s http://cip.cc | head -3         # 备选 2
 
 记下这个 IP，下一步要用。**注意：这是"整台机器出网"的 IP，如果 AstrBot 走代理，要填代理的出口 IP。**
 
-> 实测（AstrBot主机，2026-10-18）：`api.ipify.org` 解析得到 Cloudflare 地址但连不上，
+> 实测（AstrBot 主机，2026-10-18）：`api.ipify.org` 解析得到 Cloudflare 地址但连不上，
 > `myip.ipip.net` / `cip.cc` 都正常。家宽出口 IP 是**动态**的，申请 token 前务必现测一次，
 > 别用旧记录里的值（本文不记录具体 IP）。
 
@@ -236,7 +236,7 @@ systemctl daemon-reload
 - [ ] arona.icu 侧已完成「数据来源备注」
 - [x] 旧服务器上的 token / 证书 / 密钥 / service 已清除（整机移交：`:8443` 拒连、SSH 已不可登录）
 
-## 十、执行记录（2026-10-18，AstrBot主机）
+## 十、执行记录（2026-10-18，AstrBot 主机）
 
 配置侧已经切完，卡在账号封禁上，记录在此免得下次重新排查。
 
@@ -252,7 +252,7 @@ systemctl daemon-reload
 复验命令（**只在对的时机跑一次**，`arona_check.sh` 会连打两个接口）：
 
 ```bash
-ssh AstrBot主机 'bash /opt/astrbot-qq/tools/arona_check.sh'
+ssh <主机> 'bash /opt/astrbot-qq/tools/arona_check.sh'
 ```
 
 脚本在服务器上（`/opt/astrbot-qq/tools/arona_check.sh`），仓库副本是
@@ -277,7 +277,7 @@ ssh AstrBot主机 'bash /opt/astrbot-qq/tools/arona_check.sh'
 解封后一键恢复（挪回 -> 重启 -> 自检；**自检不过会自动退回测试 token 状态**，不会把线上搞挂）：
 
 ```bash
-ssh AstrBot主机 'bash /opt/astrbot-qq/tools/arona_restore_token.sh'
+ssh <主机> 'bash /opt/astrbot-qq/tools/arona_restore_token.sh'
 ```
 
 脚本在服务器上（`/opt/astrbot-qq/tools/arona_restore_token.sh`），仓库副本是
@@ -287,7 +287,7 @@ ssh AstrBot主机 'bash /opt/astrbot-qq/tools/arona_restore_token.sh'
 > 测试 token 的代价：**5 req/s**、可能随时变。插件本来就有 `MIN_INTERVAL`（4/s）和
 > 5 分钟结果缓存，日常几个人查数值打不满，但别用它跑批量。
 
-### 10-21 复核：这份真 token 在 AstrBot主机 上基本无解
+### 10-21 复核：这份真 token 在 AstrBot 主机上基本无解
 
 隔了近三天（线上一直跑 `uuz:uuz`，真 token 只在临时目录里被试了两三次）再试，仍然是 `4005`：
 

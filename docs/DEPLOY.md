@@ -2,7 +2,7 @@
 
 - **包**：`ba-wiki-plugin.zip`（约 45 KB，17 个文件，无第三方依赖）
 - **版本**：`0.6.1`（metadata.yaml 与插件注册版本一致）
-- **适用**：AstrBot 4.x（Python ≥ 3.10），当前线上实例 `AstrBot主机 (<AstrBot主机IP>)`
+- **适用**：AstrBot 4.x（Python ≥ 3.10），当前线上实例 `AstrBot 主机（<主机IP>）`
 - **变更**：本版是 T1~T10 重构后的正式包。5 个工具、`/ba` 的 5 类用法、参数与返回结构不变；
   名字显示与匹配来源有升级（见文末「变更摘要」）
 
@@ -32,7 +32,7 @@ astrbot_plugin_ba_wiki/
 
 | 项 | 值 |
 |---|---|
-| 主机 / 面板 | `AstrBot主机`（<AstrBot主机IP>）/ http://<AstrBot主机IP>:6185 |
+| 主机 / 面板 | `<主机名>`（<主机IP>）/ http://<AstrBot主机IP>:6185 |
 | 服务 | `sudo systemctl restart astrbot` |
 | 插件目录 | `/opt/astrbot-qq/data/plugins/astrbot_plugin_ba_wiki/` |
 | 数据目录 | `/opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki/` |
@@ -56,7 +56,7 @@ sudo tar czf /root/ba-wiki-before-0.6.1-$(date +%F).tgz \
 
 ```bash
 # 本地把 zip 传到服务器（任选其一）
-scp ba-wiki-plugin.zip user@AstrBot主机:/tmp/
+scp ba-wiki-plugin.zip user@<主机>:/tmp/
 
 # 服务器上替换（先挪走旧的，出问题好回退）
 cd /opt/astrbot-qq/data/plugins
