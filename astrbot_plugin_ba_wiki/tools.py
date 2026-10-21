@@ -35,7 +35,7 @@ def build_skill_payload(data_dir: str, keyword: str, skill: str = "", level: int
         if r.get("kind") == "variant":
             return {
                 "ok": False,
-                "reason": "你是否想找：" + "、".join(r.get("suggest") or []),
+                "reason": "没查到该学生：形态词或叫法不认识",
                 "suggest": r.get("suggest") or [],
                 "hint": "用户给的形态词不认识，把 suggest 念给用户让他选，不要自己猜是哪一个。",
             }
@@ -128,7 +128,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
         if r.get("kind") == "variant":
             return {
                 "ok": False,
-                "reason": "你是否想找：" + "、".join(r.get("suggest") or []),
+                "reason": "没查到该学生：形态词或叫法不认识",
                 "suggest": r.get("suggest") or [],
                 "hint": "用户给的形态词不认识，把 suggest 念给用户让他选，不要自己猜是哪一个。",
             }

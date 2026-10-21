@@ -83,22 +83,22 @@ def parse_stats_query(text: str) -> tuple[str, dict]:
         out["equip_tier"] = max(1, min(int(m.group(1)), 10))
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"能力解放\s*([\d/]{1,12})", t)
+    m = re.search(r"能力解放\s*([\d/]{1,15})", t)
     if m:
         out["potential"] = m.group(1)
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"装备\s*([\d/]{1,12})", t)
+    m = re.search(r"装备\s*([\d/]{1,15})", t)
     if m:
         out["equip_tiers"] = m.group(1)
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"好感\s*(\d{1,2})", t)
+    m = re.search(r"好感\s*(\d{1,3})", t)
     if m:
         out["bond_level"] = max(0, min(int(m.group(1)), 50))
         t = t.replace(m.group(0), " ")
 
-    m = re.search(r"武器\s*(\d{1,2})", t)
+    m = re.search(r"武器\s*(\d{1,3})", t)
     if m:
         out["weapon_level"] = max(0, min(int(m.group(1)), 90))
         t = t.replace(m.group(0), " ")

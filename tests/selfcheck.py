@@ -447,6 +447,28 @@ check("分项能力解放：生命不变", p2["MaxHP"], 9091)
 check("分项能力解放：攻击提升", p2["AttackPower"] > 909, True)
 check("分项能力解放：治愈不变", p2["HealPower"], 727)
 
+# ---------------------------------------------------------------- 10) 指令参数解析
+section("10) 指令参数解析 / 提示去重")
+cmd_mod = H.plugin_module("commands")
+ren_mod = H.plugin_module("render")
+
+kw, opts = cmd_mod.parse_stats_query(
+    "爱丽丝（临战） Lv90 5星 专4 武器60 装备10/10/10 能力解放25/25/25 好感150")
+check("参数解析：名字干净", kw, "爱丽丝（临战）")
+check("参数解析：装备分槽", opts.get("equip_tiers"), "10/10/10")
+check("参数解析：能力解放分项", opts.get("potential"), "25/25/25")
+check("参数解析：好感超上限夹到 50", opts.get("bond_level"), 50)
+check("参数解析：专精阶位", opts.get("ue_tier"), 4)
+check("参数解析：等级", opts.get("level"), 90)
+
+kw2, _o = cmd_mod.parse_stats_query("爱丽丝（临战）")
+check("纯名字不被参数正则误吃", kw2, "爱丽丝（临战）")
+kw3, _o3 = cmd_mod.parse_stats_query("临战爱丽丝")
+check("前缀形态词不被误吃", kw3, "临战爱丽丝")
+
+msg = ren_mod.skill_not_found("没查到该学生：形态词或叫法不认识", ["爱丽丝（临战）"])
+check("提示只出现一次想找", msg.count("想找"), 1)
+check("提示仍带候选", "爱丽丝（临战）" in msg, True)
 # ---------------------------------------------------------------- 汇总
 print()
 print("检查项: %d  失败: %d" % (CHECKS[0], len(FAILS)))

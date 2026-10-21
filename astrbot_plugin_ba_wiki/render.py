@@ -144,7 +144,8 @@ def resolve_failed(kind: str | None, suggest: list[str] | None) -> str:
 
 
 def skill_not_found(reason, suggest: list[str] | None) -> str:
-    msg = f"没查到：{reason}"
+    text = str(reason or "")
+    msg = text if text.startswith("没查到") else f"没查到：{text}"
     if suggest:
         msg += "\n你是不是想找：" + "、".join(suggest)
     return msg
