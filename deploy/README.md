@@ -7,7 +7,7 @@
 | 文件 | 用途 |
 |---|---|
 | `docker/` | **arona 中转镜像**（token 注入，纯 HTTP，TLS 交给前置反代）：配置集中在 `docker/config/`，`docker compose up -d --build` 即起；见 [docker/README.md](docker/README.md) |
-| `compose-lan.yml` | AstrBot 主机上的旧 Docker 方案（早期 Docker 方案，**当前线上不是用它**，线上是 systemd + PyPI 安装） |
+| `compose-lan.yml` | AstrBot 主机上的早期 Docker 方案（**当前线上不是用它**，线上是 systemd + PyPI 安装） |
 | `arona-proxy.service` | 云服务器上的 arona HTTPS 转发器 —— **LEGACY / 已弃用**，2026-10-18 起插件直连（见 [docs/MIGRATE-TO-LOCAL.md](../docs/MIGRATE-TO-LOCAL.md)），仅作回滚备件 |
 | `backup.sh` | 数据备份（停服打包再拉起） |
 | `arona-token-retry.service/.timer` | 定期尝试恢复 arona 真 token —— **当前已 `disable`**：实测每次试探都可能把 24h 封禁重新计时，别开着（见 MIGRATE-TO-LOCAL.md 第十节） |
@@ -15,10 +15,10 @@
 ## 线上实际形态
 
 ```
-AstrBot 主机（<主机IP>）
+<主机名>（<主机IP>）
   AstrBot      systemd: astrbot      （uv tool install astrbot，非 Docker）
   数据          /opt/astrbot-qq/data
-  面板          http://<AstrBot主机IP>:6185
+  面板          http://<主机IP>:6185
   arona        直连 https://api.arona.icu
               实际用官方测试 token uuz:uuz（真 token 被 arona 封禁 + 家宽出口 IP 已变，暂不可用）
 ```

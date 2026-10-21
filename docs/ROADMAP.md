@@ -99,11 +99,11 @@ SchaleDB 为基准，kivo 为补充，按 `DevName` 关联，运行时合并，�
 ## 环境现状（新会话接手用）
 
 ```
-AstrBot 运行在 AstrBot 主机（<主机IP>），systemd 服务名 astrbot
+AstrBot 运行在 <主机名>（<主机IP>），systemd 服务名 astrbot
   数据目录    /opt/astrbot-qq/data
   插件目录    /opt/astrbot-qq/data/plugins/astrbot_plugin_ba_wiki
   插件数据    /opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki
-  面板        http://<AstrBot主机IP>:6185
+  面板        http://<主机IP>:6185
   重启        sudo systemctl restart astrbot
 
 arona 转发（云服务器 <转发机公网IP>，因 token 与 IP 绑定）
