@@ -77,7 +77,7 @@ python tests/selfcheck.py
 | 27 | 日服/全球大决战榜单 | 明确「查不到」，不许拿国服数据凑 |
 | 28 | 坏别名（指向不存在的人） | 只记一条 warning，不影响其它查询 |
 
-> 第 19 条的 `CH0252` 已实测命中；`by_devname` 只覆盖 187/278（kivo 的 dev_name 有后缀），
+> 第 19 条的 `CH0252` 已验证命中；`by_devname` 只覆盖 187/278（kivo 的 dev_name 有后缀），
 > 合并主键是 SchaleDB Id，见 README「与 GOALS 原文的两处偏离」。
 
 ## H. 0.6.2 新增：跨区服借人 / 字体

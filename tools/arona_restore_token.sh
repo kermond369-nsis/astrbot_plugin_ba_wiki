@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # 封禁解除后一键恢复真 token：挪回 -> 重启 -> 自检；自检不过就自动退回测试 token 状态。
 #
-# 用法：bash /opt/astrbot-qq/tools/arona_restore_token.sh
+# 用法：DD=<AstrBot>/data/plugin_data/astrbot_plugin_ba_wiki bash tools/arona_restore_token.sh
 # 退出码：0 = 真 token 已生效；1 = 自检失败已自动退回；2 = 环境不对（没有待恢复的 token 等）
 set -u
 
 echo "=== arona token 恢复尝试：$(date -Is) ==="
 
-DD=${DD:-/opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki}
-TOOLS=${TOOLS:-/opt/astrbot-qq/tools}
+DD=${DD:-}
+TOOLS=${TOOLS:-$(cd "$(dirname "$0")" && pwd)}
+if [ -z "$DD" ]; then
+  echo "用法: DD=<AstrBot>/data/plugin_data/astrbot_plugin_ba_wiki bash $0"
+  exit 2
+fi
 PENDING="$DD/arona_token.txt.pending"
 LIVE="$DD/arona_token.txt"
 

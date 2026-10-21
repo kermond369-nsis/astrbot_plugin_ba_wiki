@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # arona 链路自检：不依赖 QQ，直接用插件自己的客户端打一次接口（直连 / 中转都适用）。
 #
-# 用法：bash /opt/astrbot-qq/tools/arona_check.sh
+# 用法（二选一，另一个会自动推导）：
+#   PLUGINS=<AstrBot>/data/plugins bash tools/arona_check.sh
+#   DD=<AstrBot>/data/plugin_data/astrbot_plugin_ba_wiki bash tools/arona_check.sh
 # 退出码：0 = 正常；1 = 调用失败（看打印的错误码）；2 = 环境不对（缺插件/缺解释器）
 set -u
 
-PLUGINS=${PLUGINS:-/opt/astrbot-qq/data/plugins}
-DD=${DD:-/opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki}
+PLUGINS=${PLUGINS:-}
+DD=${DD:-}
+if [ -z "$DD" ] && [ -n "$PLUGINS" ]; then DD=$(dirname "$PLUGINS")/plugin_data/astrbot_plugin_ba_wiki; fi
+if [ -z "$PLUGINS" ] && [ -n "$DD" ]; then PLUGINS=$(cd "$(dirname "$DD")/.." 2>/dev/null && pwd)/plugins; fi
+if [ -z "$PLUGINS" ] || [ -z "$DD" ]; then
+  echo "用法: PLUGINS=<AstrBot>/data/plugins bash $0   （或指定 DD=<...>/plugin_data/astrbot_plugin_ba_wiki）"
+  exit 2
+fi
+export PLUGINS
 # 插件客户端只用标准库，系统 python3 就够；有专用解释器时用 PY=... 覆盖
 PY=${PY:-$(command -v python3 || command -v python || true)}
 
@@ -18,7 +27,7 @@ cd "$PLUGINS" || exit 2
 exec "$PY" - "$DD" <<'PY'
 import os, sys
 dd = sys.argv[1]
-sys.path.insert(0, os.environ.get('PLUGINS', '/opt/astrbot-qq/data/plugins'))
+sys.path.insert(0, os.environ['PLUGINS'])
 from astrbot_plugin_ba_wiki.clients import arona
 
 proxy = arona._proxy_cfg(dd)

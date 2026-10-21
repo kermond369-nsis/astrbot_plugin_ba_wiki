@@ -1,85 +1,62 @@
-# arona 中转（token 注入）
+# arona 中转镜像
 
-> 最小职责：**用本机出口 IP 去调 `api.arona.icu`，并注入 token**。
-> 不管 TLS、不管域名、不管鉴权 —— 那些交给你自己的反代。
-
-## 它做什么 / 不做什么
+一个最小的中转服务：用**本机出口 IP** 调 `api.arona.icu` 并注入 token，
+TLS / 域名 / 鉴权交给前置反代。适用于 AstrBot 所在网络出口 IP 会变的场景。
 
 | 做 | 不做 |
 |---|---|
-| 校验 `X-Proxy-Key` | 不终止 TLS、不签证书 |
-| 给上游注入 `Authorization: ba-token <token>` | 不做域名/Host 白名单（你的反代管） |
-| 把 `/api/*` 的请求体、响应体原样转发 | 不解析业务字段、不落数据 |
-| 一行访问日志（不含 token） | 不缓存、不重试、不改写响应 |
+| 校验 `X-Proxy-Key` | 不处理 TLS、不签证书 |
+| 注入 `Authorization: ba-token <token>` | 不做 Host/域名校验（交给反代） |
+| 原样转发 `/api/*` 的请求与响应 | 不解析业务字段、不落数据、不缓存 |
+| 一行访问日志（不含 token） | 不做重试与响应改写 |
 
 ```
-AstrBot（家宽，IP 会变）
-   │  HTTPS + X-Proxy-Key      ← 域名 / 证书 / 鉴权都是你自己的反代
+AstrBot（出口 IP 可能变动）
+   │  HTTPS + X-Proxy-Key
    ▼
-你的反代  ──HTTP 127.0.0.1:3030──▶  arona-relay  ──固定出口 IP──▶  api.arona.icu
-                                     └ token 只存在这台机器
+前置反代（域名 / 证书 / 鉴权）
+   │  HTTP 127.0.0.1:3030
+   ▼
+arona-relay  ──固定出口 IP──▶  api.arona.icu     token 只存在这台机器
 ```
 
-## 镜像怎么用（推荐）
+## 获取镜像
 
-这是**打包好的镜像**，服务器上不需要源码、不需要构建：
+已发布到 GHCR（public，amd64 + arm64 双架构）：
 
 ```bash
-# 1) 把镜像文件传上去（文件名以你拿到的为准）
-scp arona-relay-1.0.0.tar.gz root@你的服务器:/root/
-
-# 2) 导入（gzip 的 tar 包，docker load 直接认）
-docker load -i /root/arona-relay-1.0.0.tar.gz
-docker images | grep arona-relay          # 应看到 arona-relay  1.0.0
+docker pull ghcr.io/kermond369-nsis/arona-relay:1.0.0
 ```
 
-> 镜像是 **linux/amd64**。目标机不是 amd64 时，用下面的"自己构建"在本机编译。
+`compose.yml` 里默认就是该镜像，`docker compose up -d` 会自动拉取。
 
-### 也可以直接从 GHCR 拉（推荐）
-
-GitHub Actions 会在 `deploy/docker/**` 或打 tag 时自动构建并发布到 **GitHub Container Registry**，
-amd64 / arm64 双架构，`docker compose` 会按机器架构自动选：
+也可以本地构建：
 
 ```bash
-docker pull ghcr.io/kermond369-nsis/arona-relay:1.0.0    # 或 :latest
+cd deploy/docker
+docker build -t arona-relay:1.0.0 .
+# Docker Hub 不可达时换基础镜像源
+docker build --build-arg BASE_IMAGE=docker.1panel.live/library/python:3.12-alpine -t arona-relay:1.0.0 .
 ```
 
-`compose.yml` 里默认就是 `ghcr.io/kermond369-nsis/arona-relay:1.0.0`，所以直接 `docker compose up -d`
-即可，连 `docker load` 都省了。
-
-> 包是 public 才能匿名 `docker pull`。若提示 `denied`，去
-> `Settings → Packages → arona-relay → Change visibility → Public`（或用带 `write:packages` 的 PAT 推）。
-
-镜像发布规则（`.github/workflows/docker.yml`）：
-
-| 触发 | 产出的 tag |
-|---|---|
-| 推送改了 `deploy/docker/**` 或该 workflow（main 分支） | `latest`、`<proxy.py 里的 VERSION>`、`sha-<短哈希>` |
-| 打 `relay-v*` 形式的 tag | 上面三个 + `relay-v1.0.0` 这种版本 tag |
-| 手动（Actions 页 Run workflow） | 同上 |
-
-改网关代码后记得同步 `deploy/docker/proxy.py` 里的 `VERSION`，镜像 tag 会跟着变。
-
-## 部署（三条命令 + 两个配置文件）
+## 部署
 
 ```bash
-mkdir -p /opt/aronaproxy/config
-cd /opt/aronaproxy
-# 把本目录的 compose.yml 放到这里；把 proxy.env.example / arona_token.txt.example 当模板
+mkdir -p /opt/aronaproxy/config && cd /opt/aronaproxy
+cp compose.yml .                       # 仓库里的 deploy/docker/compose.yml
+cp config/proxy.env.example     config/proxy.env
+cp config/arona_token.txt.example config/arona_token.txt
 
-cp /path/to/proxy.env.example     config/proxy.env
-cp /path/to/arona_token.txt.example config/arona_token.txt
-vi config/proxy.env            # 必填 PROXY_KEY（openssl rand -hex 16），其余默认即可
-vi config/arona_token.txt      # 只写一行 <QQ号>:<密钥>
-# 权限：容器以 root 运行，需要能读到这两个文件
-#  - rootful docker：chmod 600 即可
-#  - rootless docker（docker info 里有 rootless）：容器内 root 映射到子 uid，600 会 PermissionError -> 用 644
+vi config/proxy.env          # 必填 PROXY_KEY（openssl rand -hex 16）
+vi config/arona_token.txt    # 只写一行 <QQ号>:<密钥>
 chmod 644 config/proxy.env config/arona_token.txt
 
 docker compose up -d
+docker compose ps                        # 期望 healthy
+curl -s http://127.0.0.1:3030/healthz    # 期望 ok: true
 ```
 
-部署目录最终长这样：
+目录结构：
 
 ```
 /opt/aronaproxy/
@@ -89,102 +66,50 @@ docker compose up -d
     └── arona_token.txt    # <QQ号>:<密钥>
 ```
 
-验证：
+> 权限：容器以 root 运行。rootful Docker 下 600 即可；**rootless Docker** 下容器内 root 映射到子 uid，
+> 600 会 `PermissionError: /config/proxy.env`，此时用 644。
 
-```bash
-docker compose ps                                  # 期望 (healthy)
-curl -s http://127.0.0.1:3030/healthz              # 期望 ok: true
-docker compose logs --tail=20
-```
-
-`config/proxy.env` 里可改的项：
+## 配置项（config/proxy.env）
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `PROXY_KEY` | 空（**必填**） | 客户端要带的共享密钥，`openssl rand -hex 16` |
-| `PROXY_PORT` | `30303` | 容器内监听端口（改了要同步改 compose 的端口映射） |
+| `PROXY_KEY` | 空（必填） | 客户端要带的共享密钥 |
+| `PROXY_PORT` | `30303` | 容器内监听端口（改了要同步 compose 端口映射） |
 | `UPSTREAM` | `https://api.arona.icu` | 上游 |
 | `TOKEN_FILE` | `/config/arona_token.txt` | token 文件 |
 | `MAX_BODY_BYTES` | `131072` | 单请求体上限 |
 | `UPSTREAM_TIMEOUT` | `25` | 上游超时（秒） |
 
-## 自己构建（可选，改了代码或非 amd64 时用）
+## 接口
 
-```bash
-cd deploy/docker
-docker build -t arona-relay:1.0.0 .
-
-# 国内拉不动 Docker Hub：
-docker build --build-arg BASE_IMAGE=docker.1panel.live/library/python:3.12-alpine -t arona-relay:1.0.0 .
-```
-
-导出成可传输的包：`docker save arona-relay:1.0.0 | gzip > arona-relay-1.0.0.tar.gz`
-
-## 接口（协议）
-
-两个端点，请求/响应体都是 JSON，**原样透传**。
-
-### 1) `GET /healthz` —— 就绪检查，不需要密钥
-
-```json
-{"ok": true, "version": "1.0.0", "upstream": "https://api.arona.icu",
- "token_loaded": true, "shared_key_set": true}
-```
-
-`ok=false` 一般是 `PROXY_KEY` 没填或 token 文件没读到。
-
-### 2) `POST /api/*` —— 唯一业务端点
-
-| 项 | 值 |
+| 端点 | 说明 |
 |---|---|
-| 路径 | 必须 `/api/` 开头，否则 404 |
-| 方法 | 只允许 `POST`，其它 405 |
-| `X-Proxy-Key` | **必填**，等于 `PROXY_KEY`，否则 401 |
-| body | 原样转发，上限 `MAX_BODY_BYTES`，超了 413 |
-| `Content-Type` | 发 JSON 就原样带；不带或非 JSON 会被兜成 `application/json`（arona 只吃 JSON） |
-| `Host` | 不检查（域名/鉴权是你的反代的事） |
+| `GET /healthz` | 无需密钥，返回 `{ok, version, upstream, token_loaded, shared_key_set}` |
+| `POST /api/*` | 唯一业务端点 |
 
-转发时只加一个头，客户端的 `Authorization` / `Cookie` 一律不透传：
+请求要求：`X-Proxy-Key` 必须匹配；路径必须 `/api/` 开头；方法必须是 `POST`；
+`Content-Type` 非 JSON 时按 `application/json` 转发（上游只吃 JSON）。
 
-```
-Authorization: ba-token <token>
-User-Agent:    arona-relay/1.0.0
-```
+响应：上游状态码与 body **逐字节原样返回**，因此 arona 的业务错误码（`4002/4003/4005/4007`）
+会原样传到插件。中转自身产生的错误：
 
-响应：**状态码 + body 原样返回**。arona 的业务错误是 `HTTP 200 + body.code`，所以插件原有的
-错误映射不受影响：
+| HTTP | 含义 |
+|---|---|
+| `401` | key 缺失或不匹配 |
+| `404` / `405` | 路径 / 方法不对 |
+| `413` | 请求体超过上限 |
+| `502` | 上游不可达 |
+| `503` | 未配置 `PROXY_KEY` 或未读到 token |
 
-| `code` | 含义 | 谁的 |
-|---|---|---|
-| `200` | 正常 | 上游 |
-| `4002` | 没带可识别的 token（与未登录同码）/ 未完成数据来源备注 | 上游 |
-| `4003` | `您的tokens额度已用完`（测试 token `uuz:uuz` 的额度打满） | 上游 |
-| `4005` | 账号封禁（非绑定 IP 请求的后果） | 上游 |
-| `4007` | token 无效或绑到了别的 IP | 上游 |
-| `401` | `X-Proxy-Key` 缺失/不匹配 | 中转 |
-| `404` / `405` | 路径或方法不对 | 中转 |
-| `413` | 请求体过大 | 中转 |
-| `502` | 连不上上游（DNS/超时） | 中转 |
-| `503` | 没配 `PROXY_KEY` 或没读到 token | 中转 |
+## 反代
 
-> 区分谁的问题：`401/404/405/413/502/503` 是中转或网络；`4002/4003/4005/4007` 是 arona 侧。
-
-## 接反代（域名 + HTTPS，你自己那套）
-
-容器只说明文 HTTP，只绑 `127.0.0.1:3030`。反代把它当普通后端点就行：
-
-<details>
-<summary>Caddy</summary>
+容器只说 HTTP，只绑 `127.0.0.1:3030`。反代把域名转到该地址即可（鉴权/限流放反代上）：
 
 ```caddy
 arona.example.com {
     reverse_proxy 127.0.0.1:3030
 }
 ```
-</details>
-
-<details>
-<summary>nginx</summary>
 
 ```nginx
 location / {
@@ -194,75 +119,60 @@ location / {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
 ```
-</details>
 
-鉴权、限流、IP 白名单都放你反代上做——插件只会带 `X-Proxy-Key`，反代别在前置再要求别的凭证，
-否则插件会 401。
+> 反代不要再叠加其他凭证（如 Basic Auth）：插件只会带 `X-Proxy-Key`。
+> 反代在另一个容器里时，删掉 compose 的 `ports`，接入同一 docker 网络，用 `http://arona-relay:30303`。
 
-反代在**另一个容器**里时，把 compose 的 `ports` 删掉、接入同一个 docker 网络，
-反代里用 `http://arona-relay:30303`（容器名 + 容器内端口）。
+## 接入插件
 
-## 接到插件上（AstrBot 侧）
-
-在 AstrBot 插件数据目录写 `arona_proxy.json`（填**域名**）：
+插件数据目录写 `arona_proxy.json`（填**域名**）：
 
 ```json
 {"url": "https://arona.example.com", "key": "<config/proxy.env 里的 PROXY_KEY>"}
 ```
 
 ```bash
-cd /opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki
-printf '%s\n' '{"url": "https://arona.example.com", "key": "<PROXY_KEY>"}' > arona_proxy.json
 chmod 600 arona_proxy.json
-sudo systemctl restart astrbot
 ```
 
-这个文件存在时插件走中转，**不再读** `arona_token.txt`（回滚直连就删它）。自检：
+该文件存在时插件走中转，忽略 `arona_token.txt`。自检：
 
 ```bash
-bash /opt/astrbot-qq/tools/arona_check.sh     # 期望 赛期: N / 借人: True <人数>
+PLUGINS=<AstrBot>/data/plugins bash tools/arona_check.sh
 ```
-
-## 排障速查
-
-| 现象 | 原因 | 处理 |
-|---|---|---|
-| 容器起来就退出，日志 `PermissionError: '/config/proxy.env'` | 配置文件 600，而容器内 root 读不到（rootless docker / 非 root uid） | `chmod 644 config/proxy.env config/arona_token.txt`，或把这台机器的 docker 换成 rootful |
-| `docker compose ps` 一直 `unhealthy` | 同上（healthz 打不开）；或 3030 被占用 | 先 `docker logs arona-relay`；再 `ss -lntp`（看 3030 是否被占） |
-| 插件报 `401` | 两边 `PROXY_KEY` 不一致 | 比对 `config/proxy.env` 与 `arona_proxy.json` 的 `key` |
-| 插件报 `503` | 没读到 token | 看 `curl 127.0.0.1:3030/healthz` 的 `token_loaded`；确认 `arona_token.txt` 存在且只有一行 |
-| 日志 `upstream_code=4005` | arona 封禁（非绑定 IP） | 停手，见下节"关于 IP 绑定" |
-| 日志 `upstream_code=4003` | 测试 token 额度用尽 | 等额度恢复或换自己的 token |
 
 ## 运维
 
 | 场景 | 做法 |
 |---|---|
-| 换 token | 改 `config/arona_token.txt`，**不用重启**（按 mtime 热加载，日志会打一行 `[config] 已加载 token`） |
+| 换 token | 改 `config/arona_token.txt`，**无需重启**（按 mtime 热加载，日志会打印加载记录） |
 | 改 key / 端口 | 改 `config/proxy.env`，`docker compose restart` |
-| 看日志 | `docker compose logs -f`，每行一请求：`时间 客户端IP host=... POST /api/xxx -> 200 87ms upstream_code=200` |
-| 判断封禁 | 日志里 `upstream_code=4005` = arona 侧封禁；`4003` = 额度用尽 |
-| 升级镜像 | `docker load` 新包并把 compose 的 `image` 换成新 tag，`docker compose up -d` |
+| 看日志 | `docker compose logs -f`：`时间 客户端IP host=... POST /api/xxx -> 200 87ms upstream_code=200` |
+| 判断故障位置 | 日志里 `upstream_code` 是 arona 的业务码；`401/404/413/502/503` 才是中转侧 |
 
-日志**不含 token、不含响应体**。
+排障：
 
-## 关于 IP 绑定（务必看）
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| 启动即退出，日志 `PermissionError: /config/proxy.env` | 配置 600 且 docker 为 rootless | `chmod 644 config/proxy.env config/arona_token.txt` |
+| `docker compose ps` 一直 unhealthy | 同上，或宿主机端口被占用 | 先看 `docker logs`，再查 3030 占用 |
+| 插件报 `401` | 两边 `PROXY_KEY` 不一致 | 比对 `proxy.env` 与 `arona_proxy.json` |
+| 插件报 `503` | 没读到 token | 看 `/healthz` 的 `token_loaded`；确认 token 文件只有一行 |
 
-- token 绑定的是**首次请求的 IP**，也就是这台中转机的**公网出口 IP**。
-- **token 一定要在这台机器上第一次用**；先在别处试一次，就绑到别处了。
-- 换机器 / 换 IP = 必须**报备 arona 管理手动迁移**，本镜像不做任何绕过。
-- 反复从非绑定 IP 请求会被封（`4005`，24 小时起，每次试探可能重新计时）；封禁期间停手。
+## token 与出口 IP
+
+- token 与**首次请求的出口 IP** 绑定，绑定后不可自行修改；换 IP 需站方处理
+- 因此 token 应当在这台中转机的环境下首次使用，不要先在别处试
+- 从非绑定 IP 反复请求会触发封禁（`4005`），封禁期间停止请求
 
 ## 安全清单
 
-- [ ] `PROXY_KEY` 用 `openssl rand -hex 16` 以上，别用弱口令，两边保持一致
-- [ ] 3030 只绑 `127.0.0.1`，公网只经你的反代
-- [ ] `config/` 权限 600，别提交进 git
-- [ ] 反代上的鉴权方式不要要求插件额外带凭证（它会 401）
+- [ ] `PROXY_KEY` 用 `openssl rand -hex 16` 以上
+- [ ] 3030 只绑 `127.0.0.1`，公网只经反代
+- [ ] `config/` 权限收紧，且不提交进任何仓库（`.gitignore` 已覆盖）
+- [ ] 镜像构建上下文已排除 `config/`（`.dockerignore`）
 
-## 与其它实现的关系
+## 与 systemd 版转发器的关系
 
-| 文件 | 状态 |
-|---|---|
-| `deploy/docker/`（本目录） | **当前方案**：容器化、配置集中、零第三方依赖、加固运行 |
-| `tools/arona_proxy.py` + `deploy/arona-proxy.service` | **LEGACY**：旧 systemd 版转发器，仅作回滚备件；协议兼容（`X-Proxy-Key` + `POST /api/*`） |
+`deploy/arona-proxy.service` + `tools/arona_proxy.py` 是等价的 systemd 实现，协议兼容
+（`X-Proxy-Key` + `POST /api/*`），已标 LEGACY，仅作回滚备件。

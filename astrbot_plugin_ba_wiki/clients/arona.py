@@ -12,7 +12,7 @@
        {"url": "https://<转发机IP>:8443", "key": "<共享密钥>"}
    转发机用自己（已绑定的）IP 去调 arona，客户端不需要持有 token。
    证书为自签，需在客户端把该证书装进系统信任库（update-ca-certificates）。
-   转移时机与回滚步骤见 docs/MIGRATE-TO-LOCAL.md。
+   适用场景与配置见 docs/ARONA-AUTH.md。
 
 token 读取顺序（仅直连模式）：data 目录 `arona_token.txt` → 环境变量 ARONA_TOKEN → 测试 token。
 """
@@ -198,7 +198,7 @@ def assist_players(
 ) -> dict:
     """查「谁把这个学生挂在助战位」，返回好友码，可按练度下限筛选。
 
-    实测要点（2026-10）：
+    接口要点：
     - 端点 `/api/friends/assist_query`，**必须带 server**
     - 过滤学生用 `uniqueId`（`studentId` 会被静默忽略）
     - 练度过滤参数是 **>= 语义**（`level:80` 会返回 Lv80~90 的玩家）：

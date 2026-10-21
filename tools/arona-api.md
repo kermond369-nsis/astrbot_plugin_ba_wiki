@@ -1,86 +1,79 @@
-# arona.icu（什亭之匣）API 备忘
+# arona.icu API 参考
 
-> 仅供本机部署使用。**token 与首次请求的 IP 绑定**，所有调试只在那台服务器上做，
-> 不要从本地或别的机器请求，否则可能被临时封禁（实测封禁返回 `4005`，24 小时）。
->
-> 本文的「转发」形态自 2026-10-18 起已弃用：转发机随云服务器移交下线，插件改直连，
-> 见 [docs/MIGRATE-TO-LOCAL.md](../docs/MIGRATE-TO-LOCAL.md)。
+插件用到的什亭之匣接口约定，便于排障与二次开发。
 
-## 鉴权
+## 基础
 
-**正确写法（2026-10-18 实测）**：
-
-```
-Authorization: ba-token <token>
-```
-
-这正是 `clients/arona.py` 与旧转发器 `tools/arona_proxy.py` 用的形式：拿官方测试
-token `uuz:uuz` 走这个 header 直接 `code 200` 拿到赛季数据。
-
-实测对照（同一台机器，连续几次请求）：
-
-| 写法 | 结果 |
+| 项 | 值 |
 |---|---|
-| 不带 token | `code 4002` |
-| `token: <token>` | `code 4002`（服务器没把这个 header 当鉴权） |
-| `ba-token: <token>` | `code 4002`（同上） |
-| **`Authorization: ba-token <token>`** | **进入鉴权**：有效 200，被封 4005 |
-| `Authorization: ba-token uuz:uuz` | `code 200`，正常返回赛季列表 |
+| Base URL | `https://api.arona.icu` |
+| 方法 | 全部 `POST`，请求体与响应体均为 JSON |
+| 鉴权 | `Authorization: ba-token <token>`（`token` 形如 `<QQ号>:<密钥>`） |
+| 业务状态 | HTTP 200 + body 的 `code`；`code == 200` 才算成功 |
 
-> 旧版本文把 `Authorization: ba-token` 记成「4007 校验失败」、把 `token:` 记成「正确写法」，
-> 与实际相反。`4002` 也不是「header 写法不对」的诊断——请求没带可识别 token 时就会返回，
-> 与未登录同码。
-
-Base URL：`https://api.arona.icu`
-
-## 错误码实测
-
-| 返回 | message | 触发条件 | 处理 |
-|---|---|---|---|
-| `200` | —— | 鉴权通过 | —— |
-| `4002` | 如需使用本站数据，请在最终展示时备注数据来源… | 请求没带服务器认得的 token（未登录同码） | 检查 `arona_token.txt` 与 header 形态；仍报到 arona.icu 补「数据来源备注」 |
-| `4005` | 您的账号已被封禁24小时！ | 同一 token 从非绑定 IP 反复请求 | 等 24h；核对 `curl -s https://api.ipify.org` 与申请 token 时的出口 IP；必要时重新申请 |
-| `4007` | token 校验失败 | token 格式不对 / 绑到别的 IP | 确认是 `<QQ号>:<密钥>`；换发 token |
-
-> `4002` 曾被当成「数据来源备注」的专属信号，其实它在「请求没带可识别 token」时也会返回；
-> 带正确 header 时该码换成 4005/4007/200。header 里塞 `source` / `X-Source` / `Referer`、
-> body 里塞 `remark` / `isMark` 一律无效，别再试。
-
-## 区服枚举
-
-```
-1 国服   2 B服    3 日服   4 综合   5 全球
-6 港澳台 7 韩服   8 亚服   9 北美服
-```
-
-## 接口清单（均 POST + JSON）
+## 接口清单
 
 | 用途 | 路径 | body |
 |---|---|---|
 | 总力战赛季列表 | `/api/season/list` | `{"server":1}` |
 | 大决战赛季列表 | `/api/season/eliminate_raid_season_list` | `{"server":1}` |
-| 总力战排名 | `/api/v2/rank/list` | `{"server":1,"season":N,"type":2,"page":1,"size":26}` |
-| 总力战榜单前列 | `/api/v2/rank/list_top` | `{"server":1,"season":N}` |
-| 总力战排行变化 | `/api/v2/rank/list_by_last_rank` | `{"server":1,"season":N,"dataType":0,"tryNumber":0}` |
-| 大决战排名 | `/api/eliminate_raid_rank/list` | `{"server":1,"season":N,...}` |
-| 大决战榜单前列 | `/api/eliminate_raid_rank/list_top` | `{"server":1,"season":N}` |
 | 大决战 Boss 列表 | `/api/eliminate_raid_rank/boss_list` | `{"server":1}` |
-| 按好友码查玩家 | `/api/friends/findRank` | `{"friend":"好友码"}` |
-| 查玩家详情 | `/api/friends/find` | `{"server":1,"friend":"好友码"}` |
-| 玩家大决战历史 | `/api/friends/eliminate_raid_history` | `{"friend":"好友码",...}` |
+| 大决战榜首 | `/api/eliminate_raid_rank/list_top` | `{"server":1,"season":N}` |
+| 大决战排名 | `/api/eliminate_raid_rank/list` | `{"server":1,"season":N,...}` |
+| 总力战排名 | `/api/v2/rank/list` | `{"server":1,"season":N,"type":2,"page":1,"size":26}` |
+| 总力战榜首 | `/api/v2/rank/list_top` | `{"server":1,"season":N}` |
+| 排名变化 | `/api/v2/rank/list_by_last_rank` | `{"server":1,"season":N,"dataType":0,"tryNumber":0}` |
+| 助战位查询 | `/api/friends/assist_query` | `{"server":1,"uniqueId":<角色ID>,"page":1,"size":10}` |
+| 按好友码查玩家 | `/api/friends/findRank` | `{"friend":"<好友码>"}` |
+| 玩家详情 | `/api/friends/find` | `{"server":1,"friend":"<好友码>"}` |
+| 玩家大决战历史 | `/api/friends/eliminate_raid_history` | `{"friend":"<好友码>",...}` |
 
-> 参数形状来自开源项目 [KimigaiiWuyi/BlueArchiveUID](https://github.com/KimigaiiWuyi/BlueArchiveUID)
-> 与站内前端包（`/api/...` 路径由 `arona.icu/assets/index-*.js` 提取）。
+## 参数要点
 
-## 待确认
+**区服枚举**
 
-1. **按昵称查排名**：`findRank` 收的是好友码（好友 ID），不是昵称。
-   「日服星落城心」这类按昵称的问法，需要先确认站内是否有按昵称搜索的接口
-   （前端有 `/api/friends/name_history`、`/api/friends/find`，待 4002 解除后实测）。
-2. 大决战排名的 `difficulty`（LU/TM/INS）字段名未知，需实测。
+```
+1 国服   2 B服   3 日服   4 综合   5 国际服
+6 港澳台 7 韩服  8 亚服   9 北美服
+```
 
-## 配额与礼貌
+**大决战难度**（按国服某赛期三甲 5/5/6 校准）
 
-- 结果自己缓存，别对同一 season 反复打
-- 同一账号 key 有两个（tavily 那种）这里不适用，token 单发
-- 展示数据时必须带来源：`数据来源：什亭之匣 arona.icu`
+```
+1 Normal  2 Hard  3 VeryHard  4 HardCore  5 INS  6 TM  7 LU  8 LU+
+```
+
+**大决战装甲类型**（`armorType`）
+
+```
+0 红甲  1 黄甲  2 蓝甲  5 紫甲      其余值显示为「甲N」，不做猜测
+```
+
+**助战查询**
+
+- 过滤学生用 `uniqueId`；传 `studentId` 会被静默忽略
+- 练度过滤是 **>= 语义**（`level:80` 返回 Lv80~90）
+- 可用过滤字段：`starGrade` / `level` / `weaponStarGrade` / `exSkillLevel`
+- 结果里的好友码是**字母数字串**（如 `abc1234`），不是 QQ 号
+
+## 错误码
+
+| code | 含义 | 处理 |
+|---|---|---|
+| `200` | 正常 | —— |
+| `4002` | 没带可识别的 token（与未登录同码）；也可能未完成「数据来源备注」 | 检查鉴权头与配置；仍不行到站点补声明 |
+| `4003` | 限流 / 额度用尽（公共 token 为全局 5 次/秒共享） | 降频或换自己的 token |
+| `4005` | 账号封禁（非绑定 IP 请求的后果） | 停止请求，核对出口 IP 后再试 |
+| `4007` | token 无效或已绑定到别的 IP | 确认格式，必要时重新申请 |
+
+## 使用约束
+
+- **不要在别处直连调试 token**：绑定首次请求的出口 IP，调试要用最终运行环境的出口
+- 结果自行缓存，避免同一条件反复请求（插件内已有 5 分钟滑动缓存与 0.25s 节流）
+- 展示数据必须带来源行：`数据来源：什亭之匣 https://arona.icu`
+- 使用前在站点完成「数据来源备注」声明
+
+## 参考
+
+接口形状取自站内前端包与开源项目 [KimigaiiWuyi/BlueArchiveUID](https://github.com/KimigaiiWuyi/BlueArchiveUID)，
+并经实际调用验证；字段名以上游实际返回为准。

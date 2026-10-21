@@ -1,0 +1,11 @@
+# 统一行尾：仓库内以 LF 存储，避免 Windows 检出后脚本带 CR 导致 bash 报错
+* text=auto
+*.sh        text eol=lf
+*.py        text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.service   text eol=lf
+*.timer     text eol=lf
+Dockerfile  text eol=lf

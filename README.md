@@ -7,7 +7,7 @@
 数值不靠模型编，配队不靠猜
 
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.x-4A90D9?style=flat-square)](https://github.com/AstrBotDevs/AstrBot)
-[![Version](https://img.shields.io/badge/version-0.6.2-16a34a?style=flat-square)](https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki)
+[![Version](https://img.shields.io/badge/version-0.6.2-16a34a?style=flat-square)](https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](LICENSE)
 
@@ -42,17 +42,19 @@ BA 群里最常问的几件事，靠模型记忆全是编的，靠联网搜索�
 
 ## 安装
 
-**方式一：插件市场**
-AstrBot 面板「插件 → 插件市场」搜索 `ba_wiki` 安装。
+**方式一：插件市场** —— 面板「插件 → 插件市场」搜索 `ba_wiki`。
 
 **方式二：手动**
 
 ```bash
-cd /path/to/AstrBot/data/plugins
+cd <AstrBot>/data/plugins
 git clone https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki.git
 # 目录名必须是 astrbot_plugin_ba_wiki
 sudo systemctl restart astrbot     # 或面板里重载插件
 ```
+
+**方式三：发布包** —— 从 [Releases](https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki/releases) 下载 zip，
+解压到 `<AstrBot>/data/plugins/`。
 
 无需额外依赖（只用 AstrBot 自带的 aiohttp / Pillow）。
 
@@ -81,6 +83,7 @@ sudo systemctl restart astrbot     # 或面板里重载插件
 /ba 借 泳装星野 国际服 5星
 /ba 下页              保留条件翻页
 /ba 攻略 国服 大决战 大蛇
+/ba 字体              检查文本转图片所需字体
 ```
 
 ### 输出示例
@@ -108,42 +111,39 @@ sudo systemctl restart astrbot     # 或面板里重载插件
 | `水星野` | 不认识 → 列出候选让你选 |
 
 国服未上线角色（如椎名纺）显示为 **椎名纺（ツムギ）**，不显示 SchaleDB 的占位字。
+解析规则与显示策略见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 配置
 
-`data/config/astrbot_plugin_ba_wiki_config.json`，或面板插件页修改：
+`<AstrBot>/data/config/astrbot_plugin_ba_wiki_config.json`，或面板插件页修改：
 
 | 项 | 默认 | 说明 |
 |---|---|---|
 | `font.auto_download` | 开 | 启动时检查文本转图片所需 CJK 字体，缺了自动补 |
 | `font.mirror_prefix` | 空 | 自定义下载反代 |
-| `aliases.json` | 见下 | 群里的私人叫法，如 `{"藻哥": "若藻"}` |
 
-### 字体（文本转图片变方块时）
+### 别名表
 
-中文变 □□□ 是宿主机缺 CJK 字体，插件自带修复：
+编辑插件数据目录的 `aliases.json`（首次启动自动生成模板）：
 
-- 插件页「字体」标签 → **下载 / 修复字体**
-- 或发 `/ba 字体`
-- 或手动把任意 CJK 字体放到 `<AstrBot data>/font.ttf`
+```json
+{
+  "_说明": "键是群里的叫法，值是官方名（任意语言）/ 角色 ID / 显示名",
+  "藻哥": "若藻",
+  "石头": "10007"
+}
+```
+
+改完在插件页点「重载插件」生效；以 `_` 开头的键会被忽略，可用来写注释。
+
+## 字体（文本转图片出现方块时）
+
+中文变 □□□ 是宿主机缺 CJK 字体，插件自带修复：插件页「字体」标签 → **下载 / 修复字体**，
+或发 `/ba 字体 修复`，或手动把任意 CJK 字体放到 `<AstrBot data>/font.ttf`。
 
 > ⚠️ 不要用 `DroidSansFallbackFull.ttf` 这类 fallback 字体：只有 CJK 没有拉丁，数字和英文会变方块。
 
-## 目录结构
-
-```
-astrbot_plugin_ba_wiki/
-├── main.py            胶水：生命周期 / 工具绑定 / 指令接线
-├── tools.py           5 个 LLM 工具（docstring 即路由契约）
-├── commands.py        /ba 的借 / 翻页 / 大决战 / 攻略 / 技能分支
-├── directory.py       名字解析：多语言索引 + 判定链 + 显示策略
-├── skills.py          技能槽位与数值（纯函数）
-├── render.py          所有输出文本
-├── sources/           schaledb.py（ETag 刷新）、kivo.py（补充名）、font.py（字体）
-├── clients/           arona.py（什亭之匣）、bilibili.py（B 站）
-├── pages/font/        插件页：字体管理
-└── sync_data.py       手动全量同步
-```
+细节见 [docs/DEPLOY.md](docs/DEPLOY.md) 的「文本转图片时的中文字体」。
 
 ## 数据来源与合规
 
@@ -151,50 +151,64 @@ astrbot_plugin_ba_wiki/
 |---|---|---|
 | [SchaleDB](https://schaledb.com) | 技能数值、七语言名称 | 权威数值源，社区维护；按 ETag 增量刷新 |
 | [kivo.wiki](https://kivo.wiki) | 通用中文 / 国服 / 国际服译名、官方绰号 | 仅作名称补充 |
-| [什亭之匣 arona.icu](https://arona.icu) | 大决战榜单、助战位、好友码 | 需自行申请 token（`<QQ号>:<密钥>`，与首次请求 IP 绑定）；插件默认直连，见 [部署与迁移](docs/MIGRATE-TO-LOCAL.md) |
+| [什亭之匣 arona.icu](https://arona.icu) | 大决战榜单、助战位、好友码 | 需自己的 token（`<QQ号>:<密钥>`，与首次请求 IP 绑定），配置见 [docs/ARONA-AUTH.md](docs/ARONA-AUTH.md) |
 | [Bilibili](https://www.bilibili.com) | 攻略视频 | 仅标题与链接，不转载内容 |
 
-**数据版权归各来源站所有**，本插件只做聚合查询与格式化展示，输出均附带来源行。使用 arona 接口前请在 [arona.icu](https://arona.icu) 完成「数据来源备注」声明。
+**数据版权归各来源站所有**，本插件只做聚合查询与格式化展示，输出均附带来源行。
+使用 arona 接口前请在 [arona.icu](https://arona.icu) 完成「数据来源备注」声明。
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/DEPLOY.md](docs/DEPLOY.md) | 部署、目录、预热、验收、排障、字体 |
+| [docs/ARONA-AUTH.md](docs/ARONA-AUTH.md) | arona 鉴权：直连 / 中转、优先级、错误码、自检 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 分层、数据源、名称显示策略、槽位映射、缓存 |
+| [deploy/docker/README.md](deploy/docker/README.md) | arona 中转镜像（协议、部署、反代） |
+| [tools/arona-api.md](tools/arona-api.md) | arona 接口参考 |
 
 ## 常见问题
 
 <details>
 <summary>报 <code>code 4007</code></summary>
 
-arona 的 token 必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定、绑死后不可改**。换网络或换机器需重新申请。家宽动态 IP 的处理方案见 [docs/MIGRATE-TO-LOCAL.md](docs/MIGRATE-TO-LOCAL.md)。
+token 无效或已绑定到别的 IP。token 格式必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定、绑死后不可改**。
+换网络或换机器需重新申请；出口 IP 会变的话建议改用中转，见 [docs/ARONA-AUTH.md](docs/ARONA-AUTH.md)。
 </details>
 
 <details>
 <summary>报 <code>code 4002</code></summary>
 
-请求里没有服务器认得的 token（默认落到提示语，与未登录同码）。先确认数据目录下有 `arona_token.txt`、内容是 `<QQ号>:<密钥>`；确认无误仍报到 arona.icu 补「数据来源备注」声明。
+请求里没有服务器认得的 token（默认落到提示语，与未登录同码）。确认数据目录下有 `arona_token.txt`
+或 `arona_proxy.json` 且内容正确；确认无误仍报到 arona.icu 补「数据来源备注」声明。
+</details>
+
+<details>
+<summary>报 <code>code 4003</code></summary>
+
+限流或额度用尽。公共测试 token `uuz:uuz` 是**全局共享 5 次/秒**，别人同时在用就会打满；
+换成自己的 token 即可解除。
 </details>
 
 <details>
 <summary>报 <code>code 4005</code></summary>
 
-账号被临时封禁（24 小时）。常见诱因是同一个 token 从**非绑定 IP** 反复请求。等封禁到期后先用 `curl -s https://api.ipify.org` 核对出口 IP 与申请 token 时是否一致，再重试；这段时间可以临时用官方测试 token `uuz:uuz`（5 req/s）。
+账号被封禁，常见原因是同一 token 从**非绑定 IP** 反复请求。停手等待，别重试（重试可能重新计时），
+并核对当前出口 IP 与申请 token 时是否一致。
 </details>
 
 <details>
 <summary>技能数值查错槽位</summary>
 
 玩家说的「普通技能」对应 SchaleDB 的 `Public`，**不是** `Normal`（`Normal` 只有帧数据）。
+映射表见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 </details>
 
 <details>
-<summary>日服/全球的大决战查不到</summary>
+<summary>日服 / 国际服的大决战查不到</summary>
 
 上游只有国服有榜单，赛期列表才是全服通用。插件遇到别的区服会直说查不到，不拿国服数据凑。
 </details>
-
-## 文档
-
-| 文档 | 内容 |
-|---|---|
-| [docs/MIGRATE-TO-LOCAL.md](docs/MIGRATE-TO-LOCAL.md) | **arona 鉴权怎么配、怎么从远端转发迁回本地直连** |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（插件安装、数据目录、排障） |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | 重构任务与设计取舍记录 |
 
 ## 开发
 
@@ -208,9 +222,3 @@ python tests/selfcheck.py     # 114 项自检：加载/绑定/契约/数据源/�
 ## 许可证
 
 [AGPL-3.0](LICENSE) —— 与 AstrBot 生态一致。二次开发或分发请保留来源与许可证。
-
-<div align="center">
-
-如果这个插件帮到了你，给个 ⭐ 就行
-
-</div>

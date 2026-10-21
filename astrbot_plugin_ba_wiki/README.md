@@ -17,7 +17,7 @@ BA 群里问「若藻 NS 各等级倍率」，靠联网搜索拿到的是摘要�
   - `meta.json` —— ETag 与上次检查时间
   - `kivo_students.json` —— kivo 全量缓存（24h，约 350KB）
   - `aliases.json` —— 别名/绰号表（可自己编辑）
-- 手动全量同步（SchaleDB + kivo）：`docker exec astrbot python /AstrBot/data/plugins/astrbot_plugin_ba_wiki/sync_data.py`
+- 手动全量同步（SchaleDB + kivo）：在插件目录执行 `<python> sync_data.py`
 
 ## 追新机制（不止"7 天过期"）
 
@@ -78,7 +78,6 @@ kivo 是另一条节奏：全量 510 条详情一次拉完（约 2 分钟），�
 4. 全不中 → `suggest`，让模型先跟用户确认，**不许编数值**
 
 > 刻意**不做**「任意子串当命中」：那样 `星野水` 会被硬答成「星野」，等于默许拼错。
-> （旧文档说"支持 `星野老师` 这类后缀"，那是重构前的实现，已废弃。）
 
 ## 别名表
 
@@ -93,7 +92,7 @@ kivo 是另一条节奏：全量 510 条详情一次拉完（约 2 分钟），�
 ```
 
 改完在插件页点「重载插件」生效。以 `_` 开头的键会被忽略，可以用来写注释。
-老的 `nicknames.json` 仍然兼容读取（T9 收口），但不再生成。
+旧的 `nicknames.json` 仍兼容读取，但不再生成。
 
 ## 槽位映射（最容易错的地方）
 
@@ -147,12 +146,12 @@ clients/     arona.py（什亭之匣）、bilibili.py（B 站搜索）
 
 ```bash
 python -m compileall -q astrbot_plugin_ba_wiki
-python tests/selfcheck.py      # 103 项：加载/绑定/契约/数据源/kivo/解析/显示/指令
+python tests/selfcheck.py      # 114 项：加载/绑定/契约/数据源/kivo/解析/显示/指令
 ```
 
 `tests/golden.md` 是人工对照表，`tests/selfcheck.py` 把其中可自动化的部分都覆盖了。
 
-## 实测记录
+## 解析示例
 
 ```
 若藻/Wakamo/ワカモ/わかも/와카모/10033  → 若藻（国服译名）
@@ -172,4 +171,4 @@ python tests/selfcheck.py      # 103 项：加载/绑定/契约/数据源/kivo/�
   **插件会自己处理**：启动时后台检查 `<astrbot>/data/font.ttf`（AstrBot 字体候选表第一位），
   缺失或字形不全才下载 Noto Sans CJK 并做位图自检。手动触发：插件页「字体」→「下载 / 修复字体」，
   或 `/ba 字体 修复`。**不要用 `DroidSansFallbackFull.ttf` 这类 fallback 字体**：没有拉丁字形，
-  会让数字/英文变方块（实测 38 个字符缺字形），自检会拒绝它。与本插件无关，插件输出始终是 UTF-8。
+  会让数字/英文变方块，自检会拒绝这类字体。与本插件无关，插件输出始终是 UTF-8。

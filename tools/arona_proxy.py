@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """arona.icu API 转发器（HTTPS 端点）——【LEGACY / 已弃用，仅作回滚备件保留】。
 
-2026-10-18 起线上改为 AstrBot 直连 api.arona.icu：承载它的云服务器移交下线，
-AstrBot 主机上的插件数据目录已删除 arona_proxy.json。这段代码只在「本地直连又走不通、
-需要临时架一台固定 IP 的转发机」时才用，见 docs/MIGRATE-TO-LOCAL.md 第八节（回滚）。
+适用场景：arona 的 token 与首次请求的 IP 绑定，若 AstrBot 所在网络出口 IP 会变，
+就把它放在一台固定 IP 的机器上跑，由它出网：AstrBot --HTTPS--> 本机 --HTTPS--> arona。
 
-为什么当初需要：arona.icu 的 token 与首次请求的 IP 绑定，绑定在这台云服务器上。
-AstrBot 跑在家里局域网，出口 IP 不同，直接用 token 会校验失败。
-所以让请求绕一圈：家里 AstrBot --HTTPS--> 这台机器 --HTTPS--> arona。
-出口 IP 仍是这台机器，token 校验通过。
+日常推荐用 deploy/docker/ 里的容器镜像（配置集中、有 CI 构建的镜像）；
+本文件是等价的 systemd 实现，协议兼容（X-Proxy-Key + POST /api/*）。
 
 设计：
 - HTTPS 监听（自签证书，SAN 绑定本机 IP），客户端在 AstrBot 主机上信任该证书
@@ -30,8 +27,8 @@ BIND = os.environ.get("PROXY_BIND", "0.0.0.0")
 PORT = int(os.environ.get("PROXY_PORT", "8443"))
 KEY = os.environ.get("PROXY_KEY", "")
 TOKEN_FILE = os.environ.get("ARONA_TOKEN_FILE", "/root/.arona_token")
-CERT = os.environ.get("PROXY_CERT", "/opt/astrbot-qq/arona-proxy.crt")
-KEYFILE = os.environ.get("PROXY_KEYFILE", "/opt/astrbot-qq/arona-proxy.key")
+CERT = os.environ.get("PROXY_CERT", "/etc/arona-proxy/arona-proxy.crt")
+KEYFILE = os.environ.get("PROXY_KEYFILE", "/etc/arona-proxy/arona-proxy.key")
 
 
 def load_token() -> str:

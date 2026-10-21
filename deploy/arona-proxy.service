@@ -14,9 +14,9 @@ EnvironmentFile=-/etc/arona-proxy.env
 # 密钥不要写进仓库；在 /etc/arona-proxy.env 里放 PROXY_KEY=<openssl rand -hex 16>
 Environment=PROXY_KEY=
 Environment=ARONA_TOKEN_FILE=/root/.arona_token
-Environment=PROXY_CERT=/opt/astrbot-qq/arona-proxy.crt
-Environment=PROXY_KEYFILE=/opt/astrbot-qq/arona-proxy.key
-ExecStart=/usr/bin/python3 /opt/astrbot-qq/arona_proxy.py
+Environment=PROXY_CERT=/etc/arona-proxy/arona-proxy.crt
+Environment=PROXY_KEYFILE=/etc/arona-proxy/arona-proxy.key
+ExecStart=/usr/bin/python3 /usr/local/bin/arona_proxy.py
 Restart=always
 RestartSec=3
 
