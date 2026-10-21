@@ -7,7 +7,7 @@
 数值不靠模型编，配队不靠猜
 
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.x-4A90D9?style=flat-square)](https://github.com/AstrBotDevs/AstrBot)
-[![Version](https://img.shields.io/badge/version-0.6.2-16a34a?style=flat-square)](https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki/releases)
+[![Version](https://img.shields.io/badge/version-0.7.0-16a34a?style=flat-square)](https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](LICENSE)
 
@@ -35,6 +35,7 @@ BA 群里最常问的几件事，靠模型记忆全是编的，靠联网搜索�
 | 工具 | 能力 | 数据源 |
 |---|---|---|
 | `query_ba_skill` | 技能描述 + 各等级数值（EX / NS / NS+ / PS / SUB / WP） | SchaleDB |
+| `query_ba_stats` | 角色面板（生命 / 攻击 / 防御 / 治愈力 / 命中 / 闪避 / 暴击 / 射程…），含等级、星级、装备、专武、能力解放 | SchaleDB |
 | `query_ba_raid_team` | 大决战各期榜首三甲真实配队 | 什亭之匣 |
 | `query_ba_assist` | 谁把某学生挂助战 → 好友码，可按星级/等级/专武/EX 下限筛 | 什亭之匣 |
 | `query_ba_player` | 好友码查玩家 | 什亭之匣 |
@@ -79,6 +80,8 @@ sudo systemctl restart astrbot     # 或面板里重载插件
 /ba ワカモ ex          用日文名也行
 /ba 椎名纺            国服未上线角色也能查
 /ba 大决战            当前赛期 + 各甲榜单配队
+/ba 面板 若藻         角色面板（Lv90 · 5★ · 装备 · 专武 · 能力解放）
+/ba 面板 ツムギ Lv90 T10 能力解放25 无专武
 /ba 借 若藻 5星 Lv90 专2 EX5
 /ba 借 泳装星野 国际服 5星
 /ba 下页              保留条件翻页

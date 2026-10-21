@@ -43,6 +43,8 @@ CHECK_INTERVAL = int(os.environ.get("BA_WIKI_CHECK_INTERVAL", "3600"))  # 秒：
 STUDENTS_FILE = "students_zh.json"
 NAMES_FILE = "names.json"
 META_FILE = "meta.json"
+EQUIP_FILE = "equipment_zh.json"
+EQUIP_URL = "https://schaledb.com/data/zh/equipment.min.json"
 
 _DEFAULT_DIR: list[str | None] = [None]
 
@@ -58,6 +60,38 @@ def _resolve(dir_path: str | None = None) -> str:
     if not d:
         raise RuntimeError("SchaleDB 数据目录未配置：先调用 schaledb.configure(data_dir)")
     return str(d)
+
+
+# ------------------------------------------------------------------ 装备表
+def equipment(data_dir: str | None = None, force: bool = False) -> dict[int, dict]:
+    """装备表 {Id: 记录}，用于面板计算。缓存 7 天，缺失/过期时下载。"""
+    d = _resolve(data_dir)
+    path = os.path.join(d, EQUIP_FILE)
+
+    def _load() -> dict[int, dict]:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        items = raw.values() if isinstance(raw, dict) else raw
+        return {int(item["Id"]): item for item in items}
+
+    fresh = os.path.exists(path) and time.time() - os.path.getmtime(path) < MAX_AGE_SECONDS
+    if fresh and not force:
+        try:
+            return _load()
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        status, body, _etag = _download(EQUIP_URL)
+        if status == 200 and body:
+            os.makedirs(d, exist_ok=True)
+            with open(path, "wb") as f:
+                f.write(body)
+            return _load()
+    except Exception:  # noqa: BLE001
+        pass
+    if os.path.exists(path):
+        return _load()
+    raise FileNotFoundError("装备表缺失且下载失败：schaledb.com/equipment")
 
 
 # ------------------------------------------------------------------ 下载与缓存

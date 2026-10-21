@@ -42,6 +42,7 @@ sudo systemctl restart astrbot     # 或在面板里重载插件
 | `names.json` | 七语言名称表 | 可（随 SchaleDB 重建） |
 | `meta.json` | ETag 与上次检查时间 | 可（等于强制重新校验） |
 | `kivo_students.json` | kivo 补充名缓存（24h） | 可（下次启动重抓，约 2 分钟） |
+| `equipment_zh.json` | 装备表（面板计算用，约 76 KB，7 天） | 可（首次查面板时重下） |
 | `aliases.json` | 用户别名/绰号 | 可（会重建模板，自定义内容丢失） |
 | `arona_token.txt` / `arona_proxy.json` | arona 鉴权 | 见 [ARONA-AUTH.md](ARONA-AUTH.md) |
 
@@ -83,6 +84,7 @@ cd <AstrBot>/data/plugins/astrbot_plugin_ba_wiki
 | 3 | `/ba 若藻 ns` | 普通技能各等级数值 |
 | 4 | `/ba 大决战` | 当前赛期 + 各甲配队 + 来源行 |
 | 5 | `/ba 借 若藻 5星` | 分页抬头 + 好友码 |
+| 5b | `/ba 面板 若藻` | Lv90/5★ 口径 + 生命/攻击/防御等数值 |
 | 6 | `/ba 下页` | 页码 +1，条件不变 |
 | 7 | `/ba 攻略 国服 大决战 大蛇` | B 站标题 + 链接 |
 

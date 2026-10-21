@@ -46,7 +46,7 @@ ALIAS_TEMPLATE = {
 #  插件主模块即 data.plugins.<目录名>.main）。工具定义在 tools.py，这里把 5 个工具
 # 的来源模块对齐到本模块，它们才会被识别、绑定 self 并出现在工具列表里。
 # 升级 AstrBot 或改加载方式后，务必重跑 tests/selfcheck.py 的绑定检查。
-for _tool_name in ("query_ba_skill", "search_ba_guide", "query_ba_raid_team",
+for _tool_name in ("query_ba_skill", "query_ba_stats", "search_ba_guide", "query_ba_raid_team",
                    "query_ba_player", "query_ba_assist"):
     getattr(tools_layer.BAToolsMixin, _tool_name).__module__ = __name__
 
@@ -242,6 +242,23 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
             return {"ok": False, "reason": "本地数据缺失且下载失败，请检查服务器能否访问 schaledb.com"}
         except Exception as exc:  # noqa: BLE001
             logger.error(f"[ba_wiki] 查询失败: {exc}")
+            return {"ok": False, "reason": f"查询出错：{exc}"}
+
+    async def _stats(self, keyword: str, *, level: int = 90, star: int = 5,
+                     equip_tier: int = 0, unique_weapon: bool = True,
+                     potential: int = -1) -> dict:
+        """面板查询：等级/星级/装备/专武/能力解放都走这里。"""
+        await self._ensure_ready()
+        try:
+            return await asyncio.to_thread(
+                tools_layer.build_stats_payload, self.data_dir, keyword,
+                level=level, star=star, equip_tier=equip_tier,
+                unique_weapon=unique_weapon, potential=potential,
+            )
+        except FileNotFoundError:
+            return {"ok": False, "reason": "本地数据缺失且下载失败，请检查服务器能否访问 schaledb.com"}
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[ba_wiki] 面板查询失败: {exc}")
             return {"ok": False, "reason": f"查询出错：{exc}"}
 
     async def _resolve_student(self, keyword: str) -> tuple[dict | None, str | None]:

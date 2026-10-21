@@ -19,7 +19,7 @@ from astrbot.api.event import AstrMessageEvent
 
 from . import directory, render, skills
 from .clients import arona, bilibili
-from .sources import schaledb
+from .sources import schaledb, stats as stats_src
 
 
 def build_skill_payload(data_dir: str, keyword: str, skill: str = "", level: int | None = None) -> dict:
@@ -97,8 +97,130 @@ def build_skill_payload(data_dir: str, keyword: str, skill: str = "", level: int
     return base
 
 
+def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: int = 5,
+                        equip_tier: int = 0, unique_weapon: bool = True,
+                        weapon_level: int | None = None, bond_level: int = 50,
+                        potential: int = -1) -> dict:
+    """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
+
+    与 build_skill_payload 一样返回喂给模型的 JSON，形状稳定。
+    数值口径来自 SchaleDB 的算法（等级曲线 + 星级系数 + 装备/专武/武器/好感叠加），
+    唯一未计入的是「潜在能力」（数据里只有材料表，没有加成数值）。
+    """
+    bundle = directory.load_all(data_dir)
+    students, names = bundle["students"], bundle["names"]
+    r = directory.resolve(data_dir, keyword)
+    if not r.get("ok"):
+        if r.get("kind") == "variant":
+            return {
+                "ok": False,
+                "reason": "你是否想找：" + "、".join(r.get("suggest") or []),
+                "suggest": r.get("suggest") or [],
+                "hint": "用户给的形态词不认识，把 suggest 念给用户让他选，不要自己猜是哪一个。",
+            }
+        return {
+            "ok": False,
+            "reason": "没有查询到此学生，建议检查拼写",
+            "suggest": r.get("suggest") or [],
+            "hint": "用户可能拼错了学生名。把 suggest（若有）给用户确认；不要凭记忆编造数值。",
+        }
+
+    top = r["matches"][0]
+    sid = top["id"]
+    student = students.get(sid) or next((s for s in students.values() if str(s.get("Id")) == sid), {})
+    level = max(1, min(int(level or 90), stats_src.REGION["student_max_level"]))
+    star = max(1, min(int(star or 5), 5))
+    tiers = list(stats_src.REGION["equipment_max_level"])
+    if equip_tier:
+        tiers = [max(1, min(int(equip_tier), 10))] * 3
+    weapon_level = stats_src.REGION["weapon_max_level"] if weapon_level is None else int(weapon_level)
+    bond_level = max(0, min(int(bond_level), stats_src.REGION["bond_max_level"]))
+
+    table = schaledb.equipment(data_dir)
+    totals = stats_src.compute(
+        student, table, level=level, star=star, equip_tiers=tiers,
+        ue=unique_weapon, weapon_level=weapon_level, bond_level=bond_level,
+        potential=None if potential < 0 else potential, students=students,
+    )
+    profile = stats_src.labels(student)
+    by_lang = names.get(sid, {})
+    aliases = {}
+    for lang, name in by_lang.items():
+        if not name:
+            continue
+        label = "通用中文" if lang == schaledb.PRIMARY_LANG else schaledb.LANG_CN.get(lang, lang)
+        aliases[label] = name
+    return {
+        "ok": True,
+        "id": sid,
+        "name": directory.display_name(data_dir, sid),
+        "aliases": aliases,
+        "profile": profile,
+        "build": {
+            "level": level,
+            "star": star,
+            "equipment_tiers": tiers,
+            "unique_weapon": bool(totals.get("gear")),
+            "weapon_level": weapon_level,
+            "bond_level": totals.get("bond", 0),
+            "potential": totals.get("potential", 0),
+        },
+        "stats": {stats_src.STAT_LABEL[k]: totals[k] for k in stats_src.DISPLAY_STATS},
+        "note": "数值含等级/星级/装备/专武/武器/好感/能力解放（潜在能力）；地形适性 S~D 对应 4~0。",
+        "attribution": "数据来源：SchaleDB https://schaledb.com",
+    }
+
+
 class BAToolsMixin:
     """5 个 LLM 工具。需要与 BAWikiPlugin 混入同一个实例。"""
+
+    @llm_tool(name="query_ba_stats")
+    async def query_ba_stats(
+        self,
+        event: AstrMessageEvent,
+        student: str,
+        level: int = 90,
+        star: int = 5,
+        equip_tier: int = 0,
+        unique_weapon: bool = True,
+        potential: int = -1,
+    ) -> str:
+        """查询《蔚蓝档案》角色的完整面板数值（生命值 / 攻击力 / 防御力 / 治愈力 / 命中 / 闪避 / 暴击 / 射程等）。
+
+        当用户问「XX 90 级多少血」「XX 的面板」「攻击力多少」「防御多少」「满级多少」时调用。
+        与 query_ba_skill 的分工：技能倍率问 query_ba_skill；角色自身面板用本工具。
+
+        数值口径与 SchaleDB 一致：等级曲线 + 星级系数 + 装备 + 专武 + 武器 + 好感，
+        不含潜在能力（上游没有加成数值）。
+
+        名称支持：国服简体名、繁中名、英文名、日文名、韩文名、泰文名、角色 ID 与绰号。
+
+        Args:
+            student(string): 角色名，任何区服说法都行，如「若藻」「ワカモ」「ツムギ」「10033」。
+            level(int): 等级，默认 90（国服上限）。
+            star(int): 星级 1~5，默认 5（专武需要 5★ 才有）。
+            equip_tier(int): 装备档位 1~10，0 表示按国服上限（各槽独立上限 10/10/9）。
+            potential(int): 能力解放（潜在能力）等级 0~25；-1 表示 90 级时按满级 25、否则 0。
+            unique_weapon(bool): 是否计入专武，默认 True；角色未实装专武时自动忽略。
+
+        Returns:
+            JSON。stats 是中文名到数值的映射；profile 是攻击类型/装甲/职业/学院/站位/地形适性；
+            build 记录本次口径（等级、星级、装备档、专武、武器等级、好感等级）。
+            展示时请把口径一并说明，并保留 attribution 的来源行。
+        """
+        await self._ensure_ready()
+        try:
+            result = await asyncio.to_thread(
+                build_stats_payload, self.data_dir, student,
+                level=level, star=star, equip_tier=equip_tier, unique_weapon=unique_weapon,
+                potential=potential,
+            )
+        except FileNotFoundError:
+            return json.dumps({"ok": False, "reason": "本地装备数据缺失且下载失败，请检查能否访问 schaledb.com"},
+                              ensure_ascii=False)
+        except Exception as exc:  # noqa: BLE001
+            return json.dumps({"ok": False, "reason": f"查询出错：{exc}"}, ensure_ascii=False)
+        return json.dumps(result, ensure_ascii=False)
 
     @llm_tool(name="query_ba_skill")
     async def query_ba_skill(

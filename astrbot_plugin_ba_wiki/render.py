@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Callable
 
 ATTRIBUTION = "数据来源：什亭之匣 https://arona.icu"
+ATTRIBUTION_SCHALE = "数据来源：SchaleDB https://schaledb.com"
 
 
 # ------------------------------------------------------------------ 用法与提示
@@ -23,7 +24,58 @@ def main_help() -> str:
         "     /ba 若藻 ns     普通技能各等级数值\n"
         "     /ba ワカモ ex   用日文名也行\n"
         "     /ba 若藻 ex 3   只看 EX 技能 3 级\n"
+        "     /ba 面板 若藻     角色面板（生命/攻击/防御…）\n"
         "     /ba 攻略 国服 大决战 大蛇   搜 B 站作业视频"
+    )
+
+
+def stats_usage() -> str:
+    return (
+        "用法：/ba 面板 <学生> [Lv90] [5星] [T10] [能力解放25] [无专武]\n"
+        "例：/ba 面板 若藻\n"
+        "    /ba 面板 ツムギ Lv90 5星 T10\n"
+        "默认口径：Lv90 / 5★ / 装备按国服上限 / 专武 / 武器 Lv50 / 好感 50 / 能力解放 25"
+    )
+
+
+def stats_text(payload: dict) -> str:
+    """面板输出：口径行 + 类型行 + 数值表 + 来源行。"""
+    build = payload.get("build") or {}
+    profile = payload.get("profile") or {}
+    stats = payload.get("stats") or {}
+    tiers = build.get("equipment_tiers") or []
+    tier_txt = "/".join(f"T{t}" for t in tiers) if tiers else "-"
+    bits = [
+        f"Lv{build.get('level', '-')}",
+        f"{build.get('star', '-')}★",
+        f"装备 {tier_txt}",
+        "专武" if build.get("unique_weapon") else "无专武",
+        f"武器 Lv{build.get('weapon_level', 0)}",
+        f"好感 {build.get('bond_level', 0)}",
+        f"能力解放 {build.get('potential', 0)}",
+    ]
+    terrain = profile.get("terrain") or {}
+    type_line = (
+        f"攻击类型 {profile.get('bullet', '-')}   装甲 {profile.get('armor', '-')}"
+        f"   职业 {profile.get('role', '-')}"
+    )
+    type_line2 = (
+        f"学院 {profile.get('school', '-')}   站位 {profile.get('position', '-')}"
+        f"   地形 市区{terrain.get('Street', '-')}/室外{terrain.get('Outdoor', '-')}/室内{terrain.get('Indoor', '-')}"
+    )
+    order = [
+        ("生命值", "攻击力"), ("防御力", "治愈力"), ("命中值", "闪避值"),
+        ("暴击值", "暴击伤害"), ("稳定值", "射程"), ("载弹量", "COST 回复力"),
+    ]
+    lines = []
+    for left, right in order:
+        lines.append(f"{left} {stats.get(left, '-')}    {right} {stats.get(right, '-')}")
+    return (
+        f"国服「{payload.get('name', '?')}」面板\n"
+        f"{' · '.join(bits)}\n"
+        f"{type_line}\n{type_line2}\n\n"
+        + "\n".join(lines)
+        + f"\n\n{ATTRIBUTION_SCHALE}"
     )
 
 

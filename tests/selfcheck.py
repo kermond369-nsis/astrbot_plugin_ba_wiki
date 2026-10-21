@@ -28,8 +28,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _harness as H
 
-TOOL_NAMES = ["query_ba_skill", "search_ba_guide", "query_ba_raid_team",
+TOOL_NAMES = ["query_ba_skill", "query_ba_stats", "search_ba_guide", "query_ba_raid_team",
               "query_ba_player", "query_ba_assist"]
+# 与重构前基线逐字对照的只有这 5 个（query_ba_stats 是后加的，基线里没有）
+BASELINE_TOOLS = ["query_ba_skill", "search_ba_guide", "query_ba_raid_team",
+                  "query_ba_player", "query_ba_assist"]
 
 FAILS = []
 CHECKS = [0]
@@ -58,7 +61,7 @@ dir_mod = H.plugin_module("directory")
 # ---------------------------------------------------------------- 1. 加载与绑定
 section("1) 加载 / 注册 / 绑定")
 check("/ba 指令已注册", "ba" in H.COMMANDS)
-check("工具数量", len(H.LLM_TOOLS), 5)
+check("工具数量", len(H.LLM_TOOLS), len(TOOL_NAMES))
 check("工具名", sorted(t.name for t in H.LLM_TOOLS), sorted(TOOL_NAMES))
 bound = H.bind_tools(inst)
 check("都属于本插件且 active", sorted(t.name for t in bound), sorted(TOOL_NAMES))
@@ -113,7 +116,7 @@ section("2) 工具契约（docstring / 签名）")
 baseline = H.baseline_dir()
 if baseline:
     old = H.load_baseline(baseline)
-    for name in TOOL_NAMES:
+    for name in BASELINE_TOOLS:
         new_fn = getattr(main.BAWikiPlugin, name)
         old_fn = getattr(old.BAWikiPlugin, name)
         check("docstring 一致 %s" % name, new_fn.__doc__, old_fn.__doc__)
@@ -381,6 +384,53 @@ res = json.loads(asyncio.run(H.call_tool(assist_tool, "x", student="水星野", 
 check("助战工具 ok", res.get("ok"), True)
 check("助战工具用显示名", res.get("student_name"), "星野（泳装）")
 check("助战工具带 rendered", "助战" in res.get("rendered", ""))
+
+# ---------------------------------------------------------------- 9) 面板算法
+section("9) 面板算法（等级曲线 / 星级 / 概率解放）")
+stats_mod = H.plugin_module("sources.stats")
+
+check("等级 90 曲线系数", stats_mod.level_scale(90), 0.899)
+check("等级 1 曲线系数", stats_mod.level_scale(1), 0.0)
+check("曲线四舍五入到 4 位", stats_mod.level_scale(50), 0.4949)
+check("1 级取 stat1", stats_mod.interpolate(2907, 48600, 1, 1.0), 2907)
+check("90 级插值 + 星级", stats_mod.interpolate(2907, 48600, 90, stats_mod.star_multiplier("MaxHP", 3)), 49264)
+check("5★ 生命系数", stats_mod.star_multiplier("MaxHP", 5), 1.35)
+check("5★ 攻击系数", round(stats_mod.star_multiplier("AttackPower", 5), 4), 1.53)
+check("防御不吃星级", stats_mod.star_multiplier("DefensePower", 5), 1.0)
+
+REC = {"MaxHP1": 1000, "MaxHP100": 10000, "AttackPower1": 100, "AttackPower100": 1000,
+       "DefensePower1": 50, "DefensePower100": 500, "HealPower1": 80, "HealPower100": 800,
+       "CriticalDamageRate": 20000, "RegenCost": 700,
+       "FavorStatType": ["MaxHP", "AttackPower"],
+       "FavorStatValue": [[3, 0], [5, 0], [7, 48], [9, 58], [2, 10], [3, 15], [6, 25]]}
+
+check("能力解放 90 级前不生效", stats_mod.potential_bonus(REC, "MaxHP", 89, 25), 0)
+check("能力解放 90 级生效", stats_mod.potential_bonus(REC, "MaxHP", 90, 25), 455)
+check("能力解放 0 级为 0", stats_mod.potential_bonus(REC, "MaxHP", 90, 0), 0)
+check("好感上限随星级 1★=10", stats_mod.BOND_MAX_BY_STAR[0], 10)
+check("好感上限随星级 5★=50", stats_mod.BOND_MAX_BY_STAR[4], 50)
+check("装备槽解锁等级", stats_mod.EQUIP_UNLOCK_LEVEL, (0, 15, 35))
+
+s_basic = stats_mod.from_record(REC, 90, 1)
+check("基础面板生命", s_basic.total("MaxHP"), 9091)
+check("会心伤害默认值", s_basic.total("CriticalDamageRate"), 20000)
+check("COST 回复默认值", s_basic.total("RegenCost"), 700)
+
+# 装备系数叠加：+20% 生命、+5% 攻击
+s2 = stats_mod.from_record(REC, 90, 1)
+s2.add_buff("MaxHP_Coefficient", 2000)
+s2.add_buff("AttackPower_Coefficient", 500)
+check("装备百分比：生命", s2.total("MaxHP"), 10909)
+check("装备百分比：攻击", s2.total("AttackPower"), 954)
+
+s3 = stats_mod.from_record(REC, 90, 1)
+s3.add_buff("MaxHP_Base", 1000)
+check("平坦加成先加后乘", s3.total("MaxHP"), 10091)
+
+p = stats_mod.compute(REC, {}, level=90, star=1, equip_tiers=[0, 0, 0], ue=False,
+                      weapon_level=0, bond_level=0, potential=0)
+check("compute 不装备不专武", p["MaxHP"], 9091)
+check("compute 口径回填", (p["potential"], p["bond"]), (0, 0))
 
 # ---------------------------------------------------------------- 汇总
 print()

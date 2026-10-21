@@ -58,6 +58,43 @@ def parse_assist_query(text: str) -> tuple[str, dict]:
     return " ".join(t.split()), out
 
 
+def parse_stats_query(text: str) -> tuple[str, dict]:
+    """从「面板」参数里拆出口径：Lv90 / 5星 / T10 / 能力解放25 / 无专武。
+
+    未给出的项不放进 opts，由插件默认口径决定（Lv90、5★、国服上限装备、专武开、能力解放 25）。
+    """
+    t = text or ""
+    out: dict = {}
+
+    m = re.search(r"[Ll][Vv]\.?\s*(\d{1,3})", t)
+    if not m:
+        m = re.search(r"(\d{1,3})\s*级", t)
+    if m:
+        out["level"] = max(1, min(int(m.group(1)), 90))
+        t = t.replace(m.group(0), " ")
+
+    m = re.search(r"(\d)\s*[星★]", t)
+    if m:
+        out["star"] = max(1, min(int(m.group(1)), 5))
+        t = t.replace(m.group(0), " ")
+
+    m = re.search(r"\b[Tt]\s*(\d{1,2})\b", t)
+    if m:
+        out["equip_tier"] = max(1, min(int(m.group(1)), 10))
+        t = t.replace(m.group(0), " ")
+
+    m = re.search(r"能力解放\s*(\d{1,2})", t)
+    if m:
+        out["potential"] = max(0, min(int(m.group(1)), 25))
+        t = t.replace(m.group(0), " ")
+
+    if "无专武" in t or "不带专武" in t:
+        out["unique_weapon"] = False
+        t = t.replace("无专武", " ").replace("不带专武", " ")
+
+    return " ".join(t.split()), out
+
+
 async def handle_ba(plugin, event: AstrMessageEvent):
     """把一条 /ba 指令翻译成要回给用户的消息（async generator）。"""
     text = (event.message_str or "").strip()
@@ -104,6 +141,19 @@ async def handle_ba(plugin, event: AstrMessageEvent):
             yield event.plain_result(render.assist_page(res, arona.ASSIST_PAGE_SIZE))
         except Exception as exc:  # noqa: BLE001
             yield event.plain_result(f"查询失败：{exc}")
+        return
+
+    # 面板：角色自身数值（等级/星级/装备/专武/能力解放）
+    if head in ("面板", "属性", "数值", "stats", "stat"):
+        kw, opts = parse_stats_query(" ".join(parts[1:]))
+        if not kw:
+            yield event.plain_result(render.stats_usage())
+            return
+        res = await plugin._stats(kw, **opts)
+        if not res.get("ok"):
+            yield event.plain_result(render.skill_not_found(res.get("reason"), res.get("suggest")))
+            return
+        yield event.plain_result(render.stats_text(res))
         return
 
     # 翻页

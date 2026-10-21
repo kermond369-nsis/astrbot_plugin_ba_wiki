@@ -1,7 +1,7 @@
 name: astrbot_plugin_ba_wiki
 display_name: 蔚蓝档案数值查询
 author: dsh
-version: 0.6.2
+version: 0.7.0
 desc: BA 角色技能数值（SchaleDB 自动追新）、大决战榜单前列真实配队（什亭之匣）、B 站攻略视频链接；支持七语言名称与绰号，输出国服译名。
 repo: ""
 short_desc: BA 数值 + 大决战配队 + 攻略视频
