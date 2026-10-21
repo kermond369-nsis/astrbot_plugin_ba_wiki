@@ -488,7 +488,7 @@ FAKE = {"name": "X", "build": {"level": 90, "star": 5, "equipment_tiers": [10, 1
         "bond_alt_level": 50, "bond_variants": 2, "bond_total": 150,
         "potential": {"MaxHP": 0, "AttackPower": 25, "HealPower": 0}},
         "profile": {}, "stats": {}}
-check("好感口径标出延伸合计", "延伸2×50" in ren_mod.stats_text(FAKE), True)
+check("好感口径显示合计", "好感150" in ren_mod.stats_text(FAKE), True)
 msg = ren_mod.skill_not_found("没查到该学生：形态词或叫法不认识", ["爱丽丝（临战）"])
 check("提示只出现一次想找", msg.count("想找"), 1)
 check("提示仍带候选", "爱丽丝（临战）" in msg, True)

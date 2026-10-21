@@ -159,8 +159,9 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "MaxHP": parsed[0], "AttackPower": parsed[1], "HealPower": parsed[2],
         }
 
+    # 默认按「满配」：专4 + 武器 60（专4 才能到 60）
     if weapon_level is None:
-        weapon_level = stats_src.REGION["weapon_max_level"]
+        weapon_level = stats_src.WEAPON_CAP_BY_TIER[stats_src.WEAPON_TIER_MAX]
     weapon_level, ue_tier = stats_src.clamp_weapon_level(weapon_level, ue_tier)
     weapon_cap = stats_src.WEAPON_CAP_BY_TIER.get(ue_tier, 0)
     bond_requested = max(0, int(bond_level))

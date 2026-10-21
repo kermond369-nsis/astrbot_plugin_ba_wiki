@@ -31,12 +31,9 @@ def main_help() -> str:
 
 def stats_usage() -> str:
     return (
-        "用法：/ba 面板 <学生> [Lv90] [5星] [专4] [武器60] [装备10/9/9] [能力解放0/25/0] [无专武]\n"
-        "例：/ba 面板 若藻\n"
-        "    /ba 面板 ツムギ Lv90 5星 专4 武器60 装备10/9/9 能力解放0/25/0\n"
-        "专N 决定武器等级上限：专1=30 / 专2=40 / 专3=50 / 专4=60\n"
-        "能力解放顺序：生命/攻击/治愈；T10 表示三槽统一 T10\n"
-        "默认口径：Lv90 / 5★ / 装备按国服上限 / 专武 / 武器 Lv50 / 好感 50 / 能力解放 25"
+        "用法：/ba 面板 <学生> [Lv90] [5星] [专4] [武器60] [装备10/10/9] [能力解放25/25/25]\n"
+        "例：/ba 面板 爱丽丝（临战）\n"
+        "默认就是满配：Lv90 · 5★ · 专4/武器60 · 装备按上限 · 好感吃满（含全部皮肤） · 能力解放25"
     )
 
 
@@ -53,23 +50,6 @@ def _potential_text(value) -> str:
         return "0"
 
 
-def _bond_text(build: dict) -> str:
-    """好感：本体受星级限制，延伸皮肤各按 50 上限，合计才是真正生效的等级数。"""
-    main = int(build.get("bond_level", 0) or 0)
-    alt = int(build.get("bond_alt_level", 0) or 0)
-    variants = int(build.get("bond_variants", 0) or 0)
-    total = int(build.get("bond_total", main) or main)
-    requested = int(build.get("bond_requested", main) or main)
-    if variants:
-        text = "好感 %d（本体%d + 延伸%d×%d = %d）" % (requested, main, variants, alt, total)
-    else:
-        text = "好感 %d" % main
-    if requested > main and not variants:
-        text += "（本体按星级上限 %d 计）" % main
-    elif requested > alt and variants:
-        text += "（单份按上限 %d 计）" % alt
-    return text
-
 
 def stats_text(payload: dict) -> str:
     """面板输出：口径行 + 类型行 + 数值表 + 来源行。"""
@@ -78,15 +58,15 @@ def stats_text(payload: dict) -> str:
     stats = payload.get("stats") or {}
     tiers = build.get("equipment_tiers") or []
     tier_txt = "/".join(f"T{t}" for t in tiers) if tiers else "-"
+    weapon = int(build.get("weapon_level", 0) or 0)
+    ue_tier = int(build.get("ue_tier", 0) or 0)
     bits = [
         f"Lv{build.get('level', '-')}",
         f"{build.get('star', '-')}★",
-        f"装备 {tier_txt}",
-        "专武" if build.get("unique_weapon") else "无专武",
-        ("专%d（武器 Lv%d/%d）" % (build.get("ue_tier", 0), build.get("weapon_level", 0), build.get("weapon_cap", 0)))
-        if build.get("ue_tier") else f"武器 Lv{build.get('weapon_level', 0)}",
-        _bond_text(build),
-        "能力解放 " + _potential_text(build.get("potential")),
+        (f"专{ue_tier}/武器{weapon}" if ue_tier else f"武器{weapon}"),
+        tier_txt,
+        f"好感{int(build.get('bond_total', build.get('bond_level', 0)) or 0)}",
+        "能力解放" + _potential_text(build.get("potential")),
     ]
     terrain = profile.get("terrain") or {}
     type_line = (
