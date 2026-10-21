@@ -1,6 +1,6 @@
-# 【LEGACY / 已弃用，仅作回滚备件保留】2026-10-18 起插件直连 api.arona.icu，
-# 这台转发机随云服务器移交下线，线上已无该单元。要重新启用见
-# docs/MIGRATE-TO-LOCAL.md 第八节（回滚）。密钥一律走 EnvironmentFile，不进仓库。
+# 【LEGACY】等价的容器化实现在 deploy/docker/（推荐）。
+# 本单元用于「已有固定 IP 的机器 + 想用 systemd 而非容器」的场景。
+# 密钥一律走 EnvironmentFile，不进仓库。
 [Unit]
 Description=arona.icu HTTPS API proxy (IP-bound token forwarder) [LEGACY]
 After=network-online.target
