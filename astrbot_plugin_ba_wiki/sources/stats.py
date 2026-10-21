@@ -355,7 +355,24 @@ def _stat_keys() -> set[str]:
     }
 
 
-def add_skill_stats(stats: Stats, record: dict, level: int = 1) -> None:
+BULLET_ENHANCE = {
+    "Mystic": "EnhanceMysticRate",
+    "Explosion": "EnhanceExplosionRate",
+    "Pierce": "EnhancePierceRate",
+    "Sonic": "EnhanceSonicRate",
+}
+
+
+def add_weapon_tier_stats(stats: Stats, record: dict, ue_tier: int) -> None:
+    """专4（属性强化）：主属性克制率 +1000（即 +10%）。"""
+    if int(ue_tier or 0) < 4:
+        return
+    stat = BULLET_ENHANCE.get(record.get("BulletType") or "")
+    if stat:
+        stats.add_buff(stat, 1000)
+
+
+def add_skill_stats(stats: Stats, record: dict, level: int = 1, ue_tier: int = 4) -> None:
     """被动技能（Skills.Passive）的常驻属性加成，例如「永不放弃的心」+14% 攻击。
 
     数值表是按技能等级给的一组数（1400 = 14%），取 level 那一项。
@@ -365,7 +382,10 @@ def add_skill_stats(stats: Stats, record: dict, level: int = 1) -> None:
         "DamageRatio", "DamagedRatio", "EnhanceExDamageRate", "ExDamagedRatio",
         "CriticalDamageResistRate", "HealEffectivenessRate",
     }
-    for slot in ("Passive", "ExtraPassive", "WeaponPassive"):
+    slots = ["Passive", "ExtraPassive"]
+    if int(ue_tier or 0) >= 2:  # 专2 解锁「被动技能+」
+        slots.append("WeaponPassive")
+    for slot in slots:
         skill = skills.get(slot) or {}
         for effect in skill.get("Effects") or []:
             if not isinstance(effect, dict) or effect.get("Type") != "Buff":
@@ -517,7 +537,7 @@ DISPLAY_STATS = (
 
 def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int = 5,
             equip_tiers=None, ue=None, weapon_level: int = 50, bond_level: int = 50,
-            potential: int | None = None, skill_level: int = 10,
+            potential: int | None = None, skill_level: int = 10, ue_tier: int = 4,
             students: dict | None = None) -> dict:
     """算出最终面板。
 
@@ -558,7 +578,8 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
             if value:
                 stats.add_buff(stat + "_Base", value)
 
-    add_skill_stats(stats, record, skill_level)
+    add_skill_stats(stats, record, skill_level, ue_tier)
+    add_weapon_tier_stats(stats, record, ue_tier)
 
     full = {key: stats.total(key) for key in FULL_STAT_KEYS}
     totals = {stat: stats.total(stat) for stat in DISPLAY_STATS}
@@ -576,10 +597,22 @@ def compute(record: dict, equipment_table: dict, *, level: int = 90, star: int =
     return totals
 
 
-def labels(record: dict) -> dict:
-    """攻击类型 / 装甲 / 职业 / 学院 / 地形适性。"""
+_TERRAIN_UP = {"D": "C", "C": "B", "B": "A", "A": "S", "S": "SS"}
+
+
+def labels(record: dict, ue_tier: int = 0) -> dict:
+    """攻击类型 / 装甲 / 职业 / 学院 / 地形适性（专3 会把最好的地形升一级）。"""
     def pick(table, key):
         return table.get(key, key or "-")
+
+    terrain = {
+        "Street": TERRAIN_VALUE.get(record.get("StreetBattleAdaptation"), str(record.get("StreetBattleAdaptation"))),
+        "Outdoor": TERRAIN_VALUE.get(record.get("OutdoorBattleAdaptation"), str(record.get("OutdoorBattleAdaptation"))),
+        "Indoor": TERRAIN_VALUE.get(record.get("IndoorBattleAdaptation"), str(record.get("IndoorBattleAdaptation"))),
+    }
+    if int(ue_tier or 0) >= 3:  # 专3：地形适应性强化（最优地形升一级）
+        best = max(terrain, key=lambda k: {"D": 0, "C": 1, "B": 2, "A": 3, "S": 4, "SS": 5}.get(terrain[k], -1))
+        terrain[best] = _TERRAIN_UP.get(terrain[best], terrain[best])
 
     return {
         "bullet": pick(BULLET_LABEL, record.get("BulletType")),
@@ -588,9 +621,5 @@ def labels(record: dict) -> dict:
         "squad": "前锋" if record.get("SquadType") == "Main" else "后援",
         "school": pick(SCHOOL_LABEL, record.get("School")),
         "position": {"Front": "前排", "Middle": "中排", "Back": "后排"}.get(record.get("Position"), record.get("Position") or "-"),
-        "terrain": {
-            "Street": TERRAIN_VALUE.get(record.get("StreetBattleAdaptation"), str(record.get("StreetBattleAdaptation"))),
-            "Outdoor": TERRAIN_VALUE.get(record.get("OutdoorBattleAdaptation"), str(record.get("OutdoorBattleAdaptation"))),
-            "Indoor": TERRAIN_VALUE.get(record.get("IndoorBattleAdaptation"), str(record.get("IndoorBattleAdaptation"))),
-        },
+        "terrain": terrain,
     }

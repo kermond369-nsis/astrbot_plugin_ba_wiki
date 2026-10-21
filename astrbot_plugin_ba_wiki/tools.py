@@ -171,9 +171,9 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
     totals = stats_src.compute(
         student, table, level=level, star=star, equip_tiers=tiers,
         ue=favorite_item, weapon_level=weapon_level, bond_level=bond_level,
-        potential=pot, skill_level=skill_level, students=students,
+        potential=pot, skill_level=skill_level, ue_tier=ue_tier, students=students,
     )
-    profile = stats_src.labels(student)
+    profile = stats_src.labels(student, ue_tier)
     by_lang = names.get(sid, {})
     aliases = {}
     for lang, name in by_lang.items():
