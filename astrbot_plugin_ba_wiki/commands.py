@@ -113,9 +113,10 @@ def parse_stats_query(text: str) -> tuple[str, dict]:
     for pat in (r"技能全满", r"全满"):
         t = re.sub(pat, " ", t)
 
-    if "无专武" in t or "不带专武" in t:
-        out["unique_weapon"] = False
-        t = t.replace("无专武", " ").replace("不带专武", " ")
+    for word in ("无爱用品", "不带爱用品", "无专武", "不带专武"):
+        if word in t:
+            out["favorite_item"] = False
+            t = t.replace(word, " ")
 
     return " ".join(t.split()), out
 

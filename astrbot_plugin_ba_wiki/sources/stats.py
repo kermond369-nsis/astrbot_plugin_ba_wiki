@@ -309,10 +309,12 @@ def add_equipment(stats: Stats, equipment_table: dict, category: str, tier: int)
 
 
 def add_gear(stats: Stats, record: dict) -> bool:
-    """专武（Unique Weapon）：数据里是固定值，没有等级成长。"""
+    """爱用品（SchaleDB 的 Gear）：固定平坦值，无等级成长。
+
+    不按区服是否开放过滤——口径就是「全吃满」，有数据即计入。
+    """
     gear = record.get("Gear") or {}
-    released = gear.get("Released") or []
-    if not released or len(released) < 3 or not released[2]:
+    if not (gear.get("StatType") and gear.get("StatValue")):
         return False
     types = gear.get("StatType") or []
     values = gear.get("StatValue") or []
@@ -379,9 +381,6 @@ def add_bond(stats: Stats, record: dict, level: int, students: dict | None = Non
     for alt_id in record.get("FavorAlts") or []:
         alt = students.get(alt_id) or students.get(str(alt_id))
         if not alt:
-            continue
-        released = alt.get("IsReleased") or []
-        if len(released) < 3 or not released[2]:
             continue
         used += 1
         for stat, value in bond_bonus(alt, alt_level).items():

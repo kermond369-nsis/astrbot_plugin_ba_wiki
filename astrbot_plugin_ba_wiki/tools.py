@@ -112,7 +112,7 @@ def _parse_levels(text: str, size: int, lo: int, hi: int) -> list[int] | None:
 
 
 def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: int = 5,
-                        equip_tier: int = 0, equip_tiers: str = "", unique_weapon: bool = True,
+                        equip_tier: int = 0, equip_tiers: str = "", favorite_item: bool = True,
                         weapon_level: int | None = None, ue_tier: int = 0,
                         bond_level: int = 50, potential: str | int = "") -> dict:
     """关键词 -> 学生记录 -> 完整面板（含装备/专武/武器/好感）。
@@ -169,7 +169,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
 
     totals = stats_src.compute(
         student, table, level=level, star=star, equip_tiers=tiers,
-        ue=unique_weapon, weapon_level=weapon_level, bond_level=bond_level,
+        ue=favorite_item, weapon_level=weapon_level, bond_level=bond_level,
         potential=pot, students=students,
     )
     profile = stats_src.labels(student)
@@ -190,7 +190,7 @@ def build_stats_payload(data_dir: str, keyword: str, *, level: int = 90, star: i
             "level": level,
             "star": star,
             "equipment_tiers": tiers,
-            "unique_weapon": bool(totals.get("gear")),
+            "favorite_item": bool(totals.get("gear")),
             "weapon_level": weapon_level,
             "weapon_cap": weapon_cap,
             "ue_tier": ue_tier,
@@ -219,7 +219,7 @@ class BAToolsMixin:
         star: int = 5,
         equip_tier: int = 0,
         equip_tiers: str = "",
-        unique_weapon: bool = True,
+        favorite_item: bool = True,
         weapon_level: int = -1,
         ue_tier: int = 0,
         potential: str = "",
@@ -246,7 +246,7 @@ class BAToolsMixin:
                 超出该阶上限的等级会被夹到上限。
             potential(string): 能力解放等级，三项各自独立，如「0/25/0」=生命0/攻击25/治愈0；
                 单个数字表示三项同级；留空表示 90 级时按满级 25、否则 0。
-            unique_weapon(bool): 是否计入专武，默认 True；角色未实装专武时自动忽略。
+            favorite_item(bool): 是否计入爱用品（SchaleDB 的 Gear），默认 True；无数据时自动忽略。
 
         Returns:
             JSON。stats 是中文名到数值的映射；profile 是攻击类型/装甲/职业/学院/站位/地形适性；
@@ -258,7 +258,7 @@ class BAToolsMixin:
             result = await asyncio.to_thread(
                 build_stats_payload, self.data_dir, student,
                 level=level, star=star, equip_tier=equip_tier, equip_tiers=equip_tiers,
-                unique_weapon=unique_weapon, ue_tier=ue_tier,
+                favorite_item=favorite_item, ue_tier=ue_tier,
                 weapon_level=None if weapon_level < 0 else weapon_level, potential=potential,
             )
         except FileNotFoundError:

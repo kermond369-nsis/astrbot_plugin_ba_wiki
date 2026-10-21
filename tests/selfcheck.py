@@ -486,7 +486,7 @@ check("延伸好感本体按星级上限", p3["bond"], 20)
 check("延伸好感单份按 50", p3["bond_alt_level"], 50)
 check("延伸好感合计 120", p3["bond_total"], 120)
 FAKE = {"name": "X", "build": {"level": 90, "star": 5, "equipment_tiers": [10, 10, 9],
-        "unique_weapon": False, "weapon_level": 60, "weapon_cap": 60, "ue_tier": 4,
+        "favorite_item": True, "weapon_level": 60, "weapon_cap": 60, "ue_tier": 4,
         "bond_level": 50, "bond_requested": 150,
         "bond_alt_level": 50, "bond_variants": 2, "bond_total": 150,
         "potential": {"MaxHP": 0, "AttackPower": 25, "HealPower": 0}},
