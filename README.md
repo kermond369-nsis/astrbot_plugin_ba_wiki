@@ -167,7 +167,13 @@ arona 的 token 必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定
 <details>
 <summary>报 <code>code 4002</code></summary>
 
-未声明数据来源，去 arona.icu 补上开发者备注。
+请求里没有服务器认得的 token（默认落到提示语，与未登录同码）。先确认数据目录下有 `arona_token.txt`、内容是 `<QQ号>:<密钥>`；确认无误仍报到 arona.icu 补「数据来源备注」声明。
+</details>
+
+<details>
+<summary>报 <code>code 4005</code></summary>
+
+账号被临时封禁（24 小时）。常见诱因是同一个 token 从**非绑定 IP** 反复请求。等封禁到期后先用 `curl -s https://api.ipify.org` 核对出口 IP 与申请 token 时是否一致，再重试；这段时间可以临时用官方测试 token `uuz:uuz`（5 req/s）。
 </details>
 
 <details>

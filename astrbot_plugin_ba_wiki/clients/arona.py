@@ -1,16 +1,18 @@
 """arona.icu（什亭之匣）大决战榜单查询。
 
-鉴权两种模式：
+鉴权两种模式（默认直连，转发是历史方案）：
 
-1) 直连（token 与请求 IP 绑定）
+1) 直连（当前线上形态，token 与首次请求的 IP 绑定）
    `Authorization: ba-token <token>`，token 格式必须是 `<QQ号>:<密钥>`。
-   注意：token 绑定首次请求的 IP 且不可更改。AstrBot 换了出口 IP 后必须换模式。
+   注意：token 绑定首次请求的 IP 且不可更改；同一 token 从非绑定 IP 反复请求
+   会被封 24h（`4005`）。AstrBot 换了出口 IP 后要重新申请 token。
 
-2) 经 HTTPS 转发（推荐，用于 AstrBot 不在绑定 IP 上的场景）
+2) 经 HTTPS 转发（**已弃用**，仅在家宽出口 IP 不稳定、需要回滚时用）
    在插件数据目录放 `arona_proxy.json`：
        {"url": "https://<转发机IP>:8443", "key": "<共享密钥>"}
    转发机用自己（已绑定的）IP 去调 arona，客户端不需要持有 token。
    证书为自签，需在客户端把该证书装进系统信任库（update-ca-certificates）。
+   转移时机与回滚步骤见 docs/MIGRATE-TO-LOCAL.md。
 
 token 读取顺序（仅直连模式）：data 目录 `arona_token.txt` → 环境变量 ARONA_TOKEN → 测试 token。
 """

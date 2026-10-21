@@ -36,7 +36,7 @@ astrbot_plugin_ba_wiki/
 | 服务 | `sudo systemctl restart astrbot` |
 | 插件目录 | `/opt/astrbot-qq/data/plugins/astrbot_plugin_ba_wiki/` |
 | 数据目录 | `/opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki/` |
-| 出网需求 | `schaledb.com:443`、`api.kivo.wiki:443`、`api.arona.icu:443`（或转发机 `<转发机公网IP>:8443`）、`api.bilibili.com:443` |
+| 出网需求 | `schaledb.com:443`、`api.kivo.wiki:443`、`api.arona.icu:443`、`api.bilibili.com:443`（arona 直连，2026-10-18 起不再经转发机） |
 
 > QQ 侧的 NapCat 接入还没完成，与这个插件无关，不影响先上插件。
 
@@ -89,17 +89,22 @@ sudo chown -R astrbot:astrbot .
 sudo chmod -R u+rw .
 ```
 
-### 3.3 确认 arona 鉴权（二选一）
+### 3.3 确认 arona 鉴权（直连）
 
 ```bash
-# 直连：token 必须是与出口 IP 绑定的那一份，格式 <QQ号>:<密钥>
-sudo cat arona_token.txt
-
-# 或转发（推荐，token 绑在转发机上）：存在该文件就优先走转发
-sudo cat arona_proxy.json
-# {"url": "https://<转发机公网IP>:8443", "key": "<共享密钥>"}
-# 自签证书需已在 AstrBot主机 信任库：sudo update-ca-certificates
+# token 必须是与本机出口 IP 绑定的那一份，格式 <QQ号>:<密钥>，权限 600
+ls -l  arona_token.txt && cat arona_token.txt
+# 确认没有残留的转发配置：这个文件存在就会压过 token 走转发
+ls -l  arona_proxy.json 2>/dev/null || echo "无 arona_proxy.json（正确，直连）"
 ```
+
+> **2026-10-18 起转发形态已弃用**：云服务器移交，`arona_proxy.json` 已从线上数据目录删除，
+> 插件直连 `api.arona.icu`。`deploy/arona-proxy.service` 与 `tools/arona_proxy.py` 只作回滚备件，
+> 见 [MIGRATE-TO-LOCAL.md](MIGRATE-TO-LOCAL.md) 第八节。
+>
+> 现状：真 token 的账号被 arona 封禁 24h（`4005`），线上暂时用官方测试 token 跑（`arona_token.txt`
+> 已被改名为 `arona_token.txt.pending`）。解封后执行 `/opt/astrbot-qq/tools/arona_restore_token.sh`
+> 一键恢复并自检。
 
 ### 3.4 重启并看日志
 
@@ -171,7 +176,7 @@ sudo -u astrbot python -c "import sys; sys.path.insert(0,'.'); from sources impo
 |---|---|---|
 | `aliases.json` | 群里的叫法 → 官方名/角色 ID/显示名 | 键值都是字符串；以 `_` 开头的键当注释；改完重载插件 |
 | `arona_token.txt` | arona 直连 token | 与首次请求 IP 绑定，换机即失效 |
-| `arona_proxy.json` | arona HTTPS 转发 | 存在即优先；`{"url": "...", "key": "..."}` |
+| `arona_proxy.json` | arona HTTPS 转发（**已弃用**） | 存在即优先于 token；线上已删除。仅在重新架转发机时写回 |
 | `kivo_students.json` | kivo 名字缓存 | 可删，下次启动会重抓（约 2 分钟） |
 | `meta.json` | ETag + 上次检查时间 | 删了等于强制重新校验上游 |
 
@@ -182,8 +187,9 @@ sudo -u astrbot python -c "import sys; sys.path.insert(0,'.'); from sources impo
 | 插件列表里没有这个插件 | 目录多套了一层 / metadata.yaml 丢了 | 确认 `plugins/astrbot_plugin_ba_wiki/main.py` 存在；看 `journalctl` 里的 ImportError |
 | 插件在，但工具列表里没有 | 工具未启用 / 加载异常 | 面板工具页勾选；日志搜 `[ba_wiki]` 与 `llm_tool` |
 | 工具在，一调用就报 `missing 1 required positional argument: 'self'` | AstrBot 改了工具绑定规则（只绑定 `__module__` 等于插件主模块的 handler） | 见 `ba-wiki-plugin/README.md` 的结构说明与 `main.py` 顶部那段 `__module__` 对齐循环；必要时把 5 个工具移回 `main.py` |
-| 报 `code=4007` | token 无效或绑定到别的 IP | 改用 `arona_proxy.json` 转发 |
-| 报 `code=4002` | 未声明数据来源 | 到 arona.icu 完成「数据来源备注」声明 |
+| 报 `code=4007` | token 无效或绑定到别的 IP | 用 `curl -s https://api.ipify.org` 核对出口 IP，重新申请 token；短期可临时用 `uuz:uuz` 或回滚转发（见 MIGRATE-TO-LOCAL.md 第八节） |
+| 报 `code=4005` | 账号被临时封禁 24 小时（同一 token 从非绑定 IP 反复请求的典型后果） | 停手等待，别再重试；到期后核对出口 IP 与申请时一致再试 |
+| 报 `code=4002` | 请求没带服务器认得的 token（未登录同码）；也可能未完成数据来源备注 | 确认 `arona_token.txt` 存在且是 `<QQ号>:<密钥>`；无误则到 arona.icu 补「数据来源备注」 |
 | 查询报「本地数据缺失且下载失败」 | 服务器出不了网到 schaledb.com | 手工：`BA_DATA_DIR=/opt/astrbot-qq/data/plugin_data/astrbot_plugin_ba_wiki python sync_data.py`（在插件目录里跑） |
 | 重启后一直没出现 `kivo_students.json` | ① 后台任务还没跑完（2 分钟）② AstrBot 没调用 `initialize()`（版本/加载异常）③ 出网失败 | 先看日志三行（见第 4 节）：没有「已排入启动预热任务」→ 说明钩子没被调用，直接按 3.5 手动跑一次；有「已排入」但没「就绪」→ 等 2 分钟或看是否报「kivo 同步失败」 |
 | 显示名一直是「阿露 / 䌷」 | kivo 没抓成功 | 日志搜 `kivo 同步失败`；确认能访问 `api.kivo.wiki`；网络恢复后 1 小时内会自动重试 |

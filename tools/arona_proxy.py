@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""arona.icu API 转发器（HTTPS 端点）。
+"""arona.icu API 转发器（HTTPS 端点）——【LEGACY / 已弃用，仅作回滚备件保留】。
 
-为什么需要：arona.icu 的 token 与首次请求的 IP 绑定，绑定在这台云服务器上。
+2026-10-18 起线上改为 AstrBot 直连 api.arona.icu：承载它的云服务器移交下线，
+AstrBot主机 的插件数据目录已删除 arona_proxy.json。这段代码只在「本地直连又走不通、
+需要临时架一台固定 IP 的转发机」时才用，见 docs/MIGRATE-TO-LOCAL.md 第八节（回滚）。
+
+为什么当初需要：arona.icu 的 token 与首次请求的 IP 绑定，绑定在这台云服务器上。
 AstrBot 跑在家里局域网，出口 IP 不同，直接用 token 会校验失败。
 所以让请求绕一圈：家里 AstrBot --HTTPS--> 这台机器 --HTTPS--> arona。
 出口 IP 仍是这台机器，token 校验通过。
