@@ -13,7 +13,8 @@ on:
       - 'deploy/docker/**'
       - '.github/workflows/docker.yml'
     tags:
-      - 'v*'
+      # 只认中转专属 tag，避免每次发插件版本都重建镜像
+      - 'relay-v*'
   workflow_dispatch:
 
 permissions:

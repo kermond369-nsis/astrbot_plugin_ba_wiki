@@ -50,6 +50,16 @@ docker pull ghcr.io/kermond369-nsis/arona-relay:1.0.0    # 或 :latest
 > 包是 public 才能匿名 `docker pull`。若提示 `denied`，去
 > `Settings → Packages → arona-relay → Change visibility → Public`（或用带 `write:packages` 的 PAT 推）。
 
+镜像发布规则（`.github/workflows/docker.yml`）：
+
+| 触发 | 产出的 tag |
+|---|---|
+| 推送改了 `deploy/docker/**` 或该 workflow（main 分支） | `latest`、`<proxy.py 里的 VERSION>`、`sha-<短哈希>` |
+| 打 `relay-v*` 形式的 tag | 上面三个 + `relay-v1.0.0` 这种版本 tag |
+| 手动（Actions 页 Run workflow） | 同上 |
+
+改网关代码后记得同步 `deploy/docker/proxy.py` 里的 `VERSION`，镜像 tag 会跟着变。
+
 ## 部署（三条命令 + 两个配置文件）
 
 ```bash
