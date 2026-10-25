@@ -170,4 +170,4 @@ sudo systemctl restart astrbot
 
 ## 版本
 
-版本号以 `astrbot_plugin_ba_wiki/metadata.yaml` 为准，与 Releases 的 tag 对应。
+版本号以仓库根目录的 `metadata.yaml` 为准，与 Releases 的 tag 对应。

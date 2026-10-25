@@ -157,7 +157,7 @@ total  = round( (base + flat) × max(coeff, 0.2) )
 ## 测试
 
 ```bash
-python -m compileall -q astrbot_plugin_ba_wiki
+python -m compileall -q .       # 仓库根目录就是插件包
 python tests/selfcheck.py      # 加载 / 绑定 / 契约 / 数据源 / 名称解析 / 显示 / 指令
 ```
 

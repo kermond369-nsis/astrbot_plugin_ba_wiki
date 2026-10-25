@@ -3,5 +3,5 @@ display_name: 蔚蓝档案数值查询
 author: dsh
 version: 0.7.0
 desc: BA 角色技能数值与完整面板（等级/星级/装备/专武/能力解放）、大决战榜单前列真实配队（什亭之匣）、B 站攻略视频链接；支持七语言名称与绰号，输出国服译名。
-repo: ""
+repo: https://github.com/kermond369-nsis/astrbot_plugin_ba_wiki
 short_desc: BA 数值面板 + 大决战配队 + 攻略视频

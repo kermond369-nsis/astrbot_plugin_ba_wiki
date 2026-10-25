@@ -246,6 +246,7 @@ check("兼容老 nicknames.json", dir_mod.load_aliases(legacy_dir).get("藻哥")
 # T9：代码里不再引用已废弃的数据文件
 code = ""
 for root, _dirs, files in os.walk(H.PLUGIN_SRC):
+    _dirs[:] = [d for d in _dirs if d not in H.PLUGIN_IGNORE_DIRS]
     if "__pycache__" in root:
         continue
     for f in files:

@@ -305,11 +305,13 @@ token 无效或已绑定到别的 IP。token 格式必须是 `<QQ号>:<密钥>`�
 ## 开发
 
 ```bash
-python -m compileall -q astrbot_plugin_ba_wiki
+python -m compileall -q .     # 仓库根目录就是插件包
 python tests/selfcheck.py     # 162 项自检：加载/绑定/契约/数据源/解析/显示/指令/面板算法
 ```
 
 `tests/golden.md` 是人工对照表，`tests/selfcheck.py` 覆盖其中可自动化部分。
+
+插件内部机制（数据源、ETag 追新、启动预热、多语言名称表）见 [docs/INTERNALS.md](docs/INTERNALS.md)。
 
 ## 许可证
 

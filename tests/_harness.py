@@ -24,7 +24,14 @@ import types
 HERE = os.path.dirname(os.path.abspath(__file__))
 WS = os.path.dirname(HERE)
 PLUGIN_NAME = "astrbot_plugin_ba_wiki"
-PLUGIN_SRC = os.path.join(WS, PLUGIN_NAME)
+# 仓库根目录本身就是插件包（AstrBot 要求 metadata.yaml / main.py 在包根），
+# 复制时把只服务于开发的东西剔除，还原成 AstrBot 实际安装后的目录内容。
+PLUGIN_SRC = WS
+PLUGIN_IGNORE_DIRS = {
+    "tests", "deploy", "docs", "tools", "data",
+    ".git", ".github", ".t1_backup", "__pycache__",
+}
+PLUGIN_IGNORE_PATTERNS = (*PLUGIN_IGNORE_DIRS, "*.zip", "*.pyc")
 RUN_ROOT = os.path.join(HERE, ".run")
 DATA_ROOT = os.path.join(HERE, ".data")
 BASELINE_ZIP = os.path.join(WS, "backup-pre-t1.zip")
@@ -132,7 +139,7 @@ def load_plugin():
     target = os.path.join(RUN_ROOT, "data", "plugins", PLUGIN_NAME)
     shutil.rmtree(target, ignore_errors=True)
     os.makedirs(os.path.dirname(target), exist_ok=True)
-    shutil.copytree(PLUGIN_SRC, target, ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(PLUGIN_SRC, target, ignore=shutil.ignore_patterns(*PLUGIN_IGNORE_PATTERNS))
     for d in (os.path.join(RUN_ROOT, "data"), os.path.join(RUN_ROOT, "data", "plugins")):
         os.makedirs(d, exist_ok=True)
         open(os.path.join(d, "__init__.py"), "w").close()
