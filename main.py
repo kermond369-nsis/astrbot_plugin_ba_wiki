@@ -53,9 +53,9 @@ for _tool_name in ("query_ba_skill", "query_ba_stats", "search_ba_guide", "query
 
 @register(
     PLUGIN_NAME,
-    "dsh",
+    "kermond369-nsis",
     "蔚蓝档案角色技能数值查询（SchaleDB 本地缓存，多语言名称 + 绰号，输出国服译名）",
-    "0.6.2",
+    "0.7.0",
 )
 class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
     # ------------------------------------------------------------ 初始化
