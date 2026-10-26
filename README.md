@@ -268,6 +268,15 @@ Lv10: 每40秒：
 ## 常见问题
 
 <details>
+<summary>「XX 的测评卡没有吗？」</summary>
+
+测评卡来自 gamekee 碧蓝档案 wiki 的「角色评分」系列，攻略组按学园分篇发布，
+目前覆盖约 230 个角色（含换装）。**新角色上卡有滞后**，联动和个别低星角色可能还没卡。
+索引一周自动刷一次；想立刻重抓就删掉数据目录里的 `review_cards.json` 再重载插件，
+或跑 `python tests/review_audit.py --refresh` 看看上游到底有没有这张卡。
+</details>
+
+<details>
 <summary>报 <code>code 4007</code></summary>
 
 token 无效或已绑定到别的 IP。token 格式必须是 `<QQ号>:<密钥>`，且与**首次请求的 IP 绑定、绑死后不可改**。
