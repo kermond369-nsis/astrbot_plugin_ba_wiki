@@ -226,6 +226,22 @@ async def handle_ba(plugin, event: AstrMessageEvent):
         yield event.plain_result(render.raid_teams(res, plugin._name_of))
         return
 
+    # 测评卡：发一张校委会攻略组做的角色评分卡（强度评级 / 就业场合 / 抽取建议）
+    if head in ("测评", "评测", "评价", "角评", "强度", "review"):
+        kw = " ".join(parts[1:]).strip()
+        if not kw:
+            yield event.plain_result(render.review_usage())
+            return
+        res = await plugin._review_card(kw)
+        if not res.get("ok"):
+            yield event.plain_result(render.review_failed(res))
+            return
+        target = res.get("image_path") or res.get("image")
+        if target:
+            yield event.image_result(target)
+        yield event.plain_result(render.review_caption(res))
+        return
+
     # 攻略模式：只给 B 站视频链接，不自己编排配队
     if head in ("攻略", "作业", "guide"):
         kw = " ".join(parts[1:]).strip()

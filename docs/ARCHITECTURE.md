@@ -14,6 +14,7 @@
 | `sources/kivo.py` | 补充中文名与官方绰号，24h 磁盘缓存 |
 | `sources/font.py` | T2I 字体检查与获取 |
 | `sources/stats.py` | 面板数值：等级曲线、星级、装备、专武、武器、好感、能力解放 |
+| `sources/reviewcard.py` | 角色测评卡：gamekee 角评页索引、卡片图下载与缓存 |
 | `clients/arona.py` | 大决战榜单 / 助战位查询 |
 | `clients/bilibili.py` | B 站攻略视频搜索 |
 
@@ -24,6 +25,7 @@
 | SchaleDB `students_zh.json` | 技能数值、七语言名称，全量覆盖（含未上线角色） | 约 278 条 |
 | kivo.wiki | 通用中文 / 国服译名 / 国际服繁体 / 官方绰号，含皮肤形态 | 约 510 条 |
 | arona.icu | 大决战榜单、助战位、好友码 | 按赛期 |
+| gamekee「角色评分」 | 角色测评卡（校委会攻略组，按学园分篇） | 约 230 张，随卡池增长 |
 
 **关联键用 SchaleDB Id**。kivo 的条目没有稳定的 SchaleDB Id，只能通过 `avatar` 路径里的角色代号
 （`Student_Portrait_<DevName>_`）关联；而该代号在 SchaleDB 侧只覆盖部分角色，所以 **DevName 不能当主键**，
@@ -47,6 +49,10 @@
 国服未上线                        → kivo 中文全名 +（日文）                例：椎名纺（ツムギ）
 形态（皮肤）                      → SchaleDB 名称里的括号标签             例：星野（泳装）
 ```
+
+显示名本身也进别名索引（`name` 之外再挂 `display`）。有一批「国服译名（形态）」是
+kivo 的 `cn` + `skin` 拼出来的，SchaleDB 七语言名里没有这个写法（`巴（旗袍）`、`康娜（泳装）`），
+不补进索引就只剩子串命中，形态词也对不上。`resolve` 另外把「显示名与查询完全相同」当成精确命中。
 
 ## 匹配判定链
 

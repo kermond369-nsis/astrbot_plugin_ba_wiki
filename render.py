@@ -25,6 +25,7 @@ def main_help() -> str:
         "     /ba ワカモ ex   用日文名也行\n"
         "     /ba 若藻 ex 3   只看 EX 技能 3 级\n"
         "     /ba 面板 若藻     角色面板（生命/攻击/防御…）\n"
+        "     /ba 测评 若藻     测评卡（强度/就业/抽取建议）\n"
         "     /ba 攻略 国服 大决战 大蛇   搜 B 站作业视频"
     )
 
@@ -312,6 +313,41 @@ def guide_text(keyword: str, videos: list[dict]) -> str:
         lines.append("（没搜到，换个说法试试）")
     lines.append("")
     lines.append("作业主观性很大，box、练度、手法都不一样，建议自己看几个再挑。")
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ 测评卡
+def review_usage() -> str:
+    return "\n".join([
+        "用法：/ba 测评 <角色>",
+        "",
+        "例：/ba 测评 康娜（泳装）   /ba 测评 水局   /ba 测评 星野泳装",
+        "",
+        "会发一张校委会攻略组做的测评卡（强度评级 / 就业场合 / 抽取建议）。",
+        "想直接问也行：「康娜泳装值得抽吗」「若藻强不强」。",
+    ])
+
+
+def review_caption(res: dict) -> str:
+    """卡片下面跟的那一行：角色名 + 角评版本 + 来源。"""
+    name = res.get("name") or "这个角色"
+    ver = res.get("version")
+    head = f"{name} 的测评卡" + (f"（角评 {ver:g} 版）" if isinstance(ver, (int, float)) else "")
+    lines = [head + f"：{res.get('attribution') or ''}".rstrip("：")]
+    if res.get("remote"):
+        lines.append("（本地缓存失败，先用原图链接顶着）")
+    return "\n".join(lines)
+
+
+def review_failed(res: dict) -> str:
+    reason = res.get("reason") or "查不到测评卡"
+    name = res.get("name")
+    lines = [f"✗ {reason}" + (f"：{name}" if name else "")]
+    suggest = res.get("suggest") or []
+    if suggest:
+        lines.append("你是不是想找：" + "、".join(suggest))
+    lines.append("")
+    lines.append("测评卡按学园分篇发布，新角色要等攻略组补卡；也可以先 /ba 面板 或 /ba 攻略。")
     return "\n".join(lines)
 
 

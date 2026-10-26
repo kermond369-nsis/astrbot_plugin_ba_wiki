@@ -27,6 +27,7 @@ from . import commands, directory, render, tools as tools_layer
 from .clients import arona
 from .sources import font as font_src
 from .sources import kivo as kivo_src
+from .sources import reviewcard as review_src
 from .sources import schaledb
 
 try:                                    # 插件页 / 字体接口用；老版本没有这个模块就降级
@@ -47,7 +48,7 @@ ALIAS_TEMPLATE = {
 # 的来源模块对齐到本模块，它们才会被识别、绑定 self 并出现在工具列表里。
 # 升级 AstrBot 或改加载方式后，务必重跑 tests/selfcheck.py 的绑定检查。
 for _tool_name in ("query_ba_skill", "query_ba_stats", "search_ba_guide", "query_ba_raid_team",
-                   "query_ba_player", "query_ba_assist"):
+                   "query_ba_player", "query_ba_assist", "query_ba_review_card"):
     getattr(tools_layer.BAToolsMixin, _tool_name).__module__ = __name__
 
 
@@ -55,7 +56,7 @@ for _tool_name in ("query_ba_skill", "query_ba_stats", "search_ba_guide", "query
     PLUGIN_NAME,
     "kermond369-nsis",
     "蔚蓝档案角色技能数值查询（SchaleDB 本地缓存，多语言名称 + 绰号，输出国服译名）",
-    "0.7.0",
+    "0.8.0",
 )
 class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
     # ------------------------------------------------------------ 初始化
@@ -81,10 +82,13 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
         schaledb.configure(self.data_dir)
         kivo_src.configure(self.data_dir)
         font_src.configure(self.font_dir)
+        review_src.configure(self.data_dir)
         self._lock = asyncio.Lock()
         self._kivo_task: asyncio.Task | None = None
         self._warm_task: asyncio.Task | None = None
         self._font_task: asyncio.Task | None = None
+        self._review_task: asyncio.Task | None = None
+        self._review_checked_at = 0.0
         self._kivo_checked_at = 0.0
         self._assist_state: dict[str, dict] = {}   # 会话 UMO -> 翻页状态
         self._ensure_alias_template()
@@ -187,6 +191,7 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"[ba_wiki] 启动时同步 SchaleDB 失败（继续用本地缓存）: {exc}")
         self._kick_kivo_refresh()
+        self._kick_review_sync()
 
     def _kick_kivo_refresh(self):
         """kivo 全量要一两分钟：后台刷新，刷完再把名字索引失效。
@@ -232,6 +237,61 @@ class BAWikiPlugin(tools_layer.BAToolsMixin, Star):
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(f"[ba_wiki] 数据同步失败（继续用本地缓存）: {exc}")
         self._kick_kivo_refresh()
+        self._kick_review_sync()
+
+    # ------------------------------------------------------------ 测评卡
+    def _review_cfg(self) -> dict:
+        cfg = self.config.get("review")
+        return cfg if isinstance(cfg, dict) else {}
+
+    def _kick_review_sync(self):
+        """测评卡索引按周刷新：后台抓 gamekee 各学园角评页（十几条请求，几秒）。"""
+        if not self._review_cfg().get("enable", True):
+            return None
+        now = time.time()
+        if now - self._review_checked_at < 3600:
+            return self._review_task
+        if self._review_task is not None and not self._review_task.done():
+            return self._review_task
+
+        async def _run() -> None:
+            try:
+                index = await asyncio.to_thread(
+                    review_src.cards, self.data_dir, False, log=logger.info)
+                logger.info(f"[ba_wiki] 测评卡索引就绪：{len(index.get('entries') or {})} 张")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"[ba_wiki] 测评卡同步失败（继续用旧索引）: {exc}")
+
+        try:
+            self._review_task = asyncio.ensure_future(_run())
+            self._review_checked_at = now
+        except RuntimeError:      # 没有事件循环（单元测试场景）
+            self._review_task = None
+        return self._review_task
+
+    async def _review_card(self, keyword: str) -> dict:
+        """查测评卡：解析学生 -> 查索引 -> 图下载到本地（消息平台发文件比发外链稳）。
+
+        ok=True 时带 image_path（下载失败则为空、退回 remote URL）与 attribution；
+        ok=False 时带 reason / suggest。
+        """
+        if not self._review_cfg().get("enable", True):
+            return {"ok": False, "reason": "测评卡功能已在配置里关闭"}
+        await self._ensure_ready()
+        res = await asyncio.to_thread(review_src.find, self.data_dir, keyword)
+        if not res.get("ok"):
+            return res
+        url = res.get("image") or ""
+        local = ""
+        try:
+            local = await asyncio.to_thread(review_src.local_image, self.data_dir, url) or ""
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[ba_wiki] 测评卡下载失败，回退外链: {exc}")
+        out = dict(res)
+        out["image_path"] = local
+        out["remote"] = not bool(local)
+        out["attribution"] = res.get("attribution") or review_src.ATTRIBUTION
+        return out
 
     async def _query(self, keyword: str, skill: str = "", level: int | None = None) -> dict:
         await self._ensure_ready()

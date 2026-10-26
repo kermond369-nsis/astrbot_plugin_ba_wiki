@@ -18,18 +18,20 @@
 """
 
 import asyncio
+import base64
 import functools
 import inspect
 import json
 import os
 import shutil
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _harness as H
 
 TOOL_NAMES = ["query_ba_skill", "query_ba_stats", "search_ba_guide", "query_ba_raid_team",
-              "query_ba_player", "query_ba_assist"]
+              "query_ba_player", "query_ba_assist", "query_ba_review_card"]
 # 与重构前基线逐字对照的只有这 5 个（query_ba_stats 是后加的，基线里没有）
 BASELINE_TOOLS = ["query_ba_skill", "search_ba_guide", "query_ba_raid_team",
                   "query_ba_player", "query_ba_assist"]
@@ -496,6 +498,73 @@ check("好感口径显示合计", "好感150" in ren_mod.stats_text(FAKE), True)
 msg = ren_mod.skill_not_found("没查到该学生：形态词或叫法不认识", ["爱丽丝（临战）"])
 check("提示只出现一次想找", msg.count("想找"), 1)
 check("提示仍带候选", "爱丽丝（临战）" in msg, True)
+
+# ---------------------------------------------------------------- 11. 测评卡
+section("11) 测评卡（gamekee 角评，离线假索引）")
+rc = H.plugin_module("sources.reviewcard")
+CARD_ID = "10096"                     # 康娜（泳装）
+FAKE_CARD = {
+    "name": "康娜（泳装）", "raw_name": "康娜(泳装)",
+    "note": "泳七「Say-Bing!」活动追加常驻",
+    "image": "https://cdnimg-v2.gamekee.com/fake/fake.png",
+    "article": 708996, "article_title": "角色评分8.0版 - 瓦尔基里警察学校", "version": 8.0,
+}
+with open(rc.index_path(DATA_DIR), "w", encoding="utf-8") as _f:
+    json.dump({"updated": int(time.time()), "source": "test", "attribution": "测评卡：测试数据",
+               "articles": [], "entries": {CARD_ID: FAKE_CARD}}, _f, ensure_ascii=False)
+
+hit = rc.find(DATA_DIR, "康娜（泳装）")
+check("测评卡：国服译名+形态能命中", hit.get("ok"), True)
+check("测评卡：命中的是同一个角色", hit.get("name"), "康娜（泳装）")
+check("测评卡：带角评版本", hit.get("version"), 8.0)
+check("测评卡：绰号也能找（水局）", rc.find(DATA_DIR, "水局").get("name"), "康娜（泳装）")
+check("测评卡：未覆盖角色如实返回 false", rc.find(DATA_DIR, "若藻").get("ok"), False)
+check("测评卡：未覆盖时给原因", bool(rc.find(DATA_DIR, "若藻").get("reason")), True)
+
+# 图片本地缓存接到一张假图，避免测试联网
+pic = os.path.join(DATA_DIR, "fake_card.png")
+with open(pic, "wb") as _f:
+    _f.write(base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))
+_orig_local_image, _orig_kick = rc.local_image, inst._kick_review_sync
+rc.local_image = lambda data_dir, url, force=False: pic
+inst._kick_review_sync = lambda: None          # 测试里别真的去抓 gamekee
+try:
+    ev_card = H.FakeEvent("ba 测评 康娜（泳装）")
+
+    async def _run_review_cmd():
+        async for _ in main.BAWikiPlugin.ba_cmd(inst, ev_card):
+            pass
+
+    asyncio.run(_run_review_cmd())
+    check("测评指令：发了图片", ev_card.images, [pic])
+    check("测评指令：跟了一行说明", any("测评卡" in r for r in ev_card.results), True)
+
+    review_tool = next(t for t in bound if t.name == "query_ba_review_card")
+    ev_tool = H.FakeEvent("康娜泳装值得抽吗")
+    card_payload = json.loads(asyncio.run(review_tool.handler(event=ev_tool, student="康娜（泳装）")))
+    check("测评工具：ok", card_payload.get("ok"), True)
+    check("测评工具：图片已发出", card_payload.get("sent"), "ok")
+    check("测评工具：事件里是 image 组件",
+          any(getattr(c, "type", "") == "image" for c in ev_tool.sent), True)
+    check("测评工具：带 attribution", bool(card_payload.get("attribution")), True)
+    miss_payload = json.loads(asyncio.run(
+        review_tool.handler(event=H.FakeEvent("x"), student="若藻")))
+    check("测评工具：未覆盖时 ok=false", miss_payload.get("ok"), False)
+    check("测评工具：未覆盖时不编结论", "不" in (miss_payload.get("hint") or ""), True)
+    # 关掉功能后行为
+    inst.config = {"review": {"enable": False}}
+    off = asyncio.run(inst._review_card("康娜（泳装）"))
+    check("测评卡：配置关闭后不可用", off.get("ok"), False)
+    check("测评卡：关闭时的提示", "关闭" in (off.get("reason") or ""), True)
+    inst.config = {}
+finally:
+    rc.local_image = _orig_local_image
+    inst._kick_review_sync = _orig_kick
+    for _p in (rc.index_path(DATA_DIR), pic):
+        if os.path.exists(_p):
+            os.remove(_p)
+
 # ---------------------------------------------------------------- 汇总
 print()
 print("检查项: %d  失败: %d" % (CHECKS[0], len(FAILS)))

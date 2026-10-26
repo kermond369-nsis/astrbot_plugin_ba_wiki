@@ -197,6 +197,14 @@ def build_index(students: dict, names: dict, profiles: dict, aliases: dict) -> d
         profile = profiles.get(sid) or {}
         for alias in _kivo_aliases(profile.get("kivo") or {}):
             add(alias, sid, "kivo", alias)
+        # 显示名本身也要能查到：有相当一批「国服译名（形态）」（如「巴（旗袍）」）
+        # 是 kivo 的 cn + skin 拼出来的，SchaleDB 的七语言名里根本没有这个写法，
+        # 不补进来就只能靠子串命中，形态词也对不上。
+        display = (profile.get("display") or "").strip()
+        if display:
+            add(display, sid, "display", display)
+            for alt in _name_variants(display):
+                add(alt, sid, "display-variant", alt)
 
     for key, target in aliases.items():
         if not key:
@@ -286,9 +294,24 @@ def base_names(names: dict) -> dict[str, list[str]]:
 def resolve(data_dir: str, keyword: str, limit: int = 5) -> dict:
     """统一的「查学生」入口。判定链见模块文档。"""
     # 1) 只要精确命中（score==0）。子串/模糊命中一律不接受。
-    strict = [h for h in search(data_dir, keyword, limit * 2) if h.get("score") == 0]
+    candidates = search(data_dir, keyword, limit * 2)
+    strict = [h for h in candidates if h.get("score") == 0]
     if strict:
         return {"ok": True, "matches": strict[:limit]}
+
+    # 1.5) 显示名与查询完全一致，也算精确命中。
+    # 有些显示名是 kivo 合成的「国服译名（形态）」（如「康娜（泳装）」），
+    # 它只存在于 profiles.display，别名索引里没有这个 key，只能子串命中；
+    # 但用户输入的正是这个显示名时，就是精确查询，不该再走形态/拼写分支。
+    kw_norm = normalize(keyword)
+    if kw_norm:
+        exact_display = [
+            h for h in candidates
+            if normalize(h.get("display") or h.get("name") or "") == kw_norm
+        ]
+        if exact_display:
+            exact_display.sort(key=lambda h: (h.get("score", 9), len(h.get("name") or "")))
+            return {"ok": True, "matches": exact_display[:limit]}
 
     bundle = load_all(data_dir)
     names = bundle["names"]

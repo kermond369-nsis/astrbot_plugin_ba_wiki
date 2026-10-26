@@ -1,4 +1,17 @@
 {
+  "review": {
+    "description": "角色测评卡",
+    "type": "object",
+    "hint": "问「XX 值不值得抽 / 强不强」时发一张校委会攻略组做的角评卡。卡片来自 gamekee 碧蓝档案 wiki「角色评分」专栏，按学园分篇，不是每个角色都有。",
+    "items": {
+      "enable": {
+        "description": "启用测评卡",
+        "type": "bool",
+        "default": true,
+        "hint": "关掉后 /ba 测评 与 query_ba_review_card 工具都不可用。索引一周刷新一次，首次约十几条请求、几秒。"
+      }
+    }
+  },
   "font": {
     "description": "字体（文本转图片）",
     "type": "object",

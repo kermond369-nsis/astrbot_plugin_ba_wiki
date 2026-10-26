@@ -126,6 +126,43 @@ def _install_stubs():
     event.AstrMessageEvent = AstrMessageEvent
     event.filter = _Filter()
 
+    # ---- 消息链 / 组件：测评卡要走图片，工具里用 event.send(MessageChain([Image...])) ----
+    class BaseMessageComponent:
+        type = "base"
+
+    class Plain(BaseMessageComponent):
+        type = "plain"
+
+        def __init__(self, text=""):
+            self.text = text
+
+    class Image(BaseMessageComponent):
+        type = "image"
+
+        def __init__(self, url=None, file=None):
+            self.url = url
+            self.file = file
+
+        @staticmethod
+        def fromURL(url, **_):
+            return Image(url=url)
+
+        @staticmethod
+        def fromFileSystem(path, **_):
+            return Image(file=path)
+
+    class MessageChain:
+        def __init__(self, chain=None, **kwargs):
+            self.chain = list(chain or [])
+
+    comp_mod = _mk("astrbot.api.message_components")
+    comp_mod.BaseMessageComponent = BaseMessageComponent
+    comp_mod.Plain = Plain
+    comp_mod.Image = Image
+
+    event.MessageChain = MessageChain
+    event.MessageEventResult = MessageChain
+
     _mk("astrbot.core")
 
 
@@ -233,10 +270,42 @@ class FakeEvent:
         self.message_str = message
         self.unified_msg_origin = umo
         self.results = []
+        self.images = []       # image_result() 产出的图片（URL 或本地路径）
+        self.sent = []         # event.send(MessageChain) 直接发出的组件
 
     def plain_result(self, text):
         self.results.append(text)
         return text
+
+    def image_result(self, url_or_path):
+        self.images.append(url_or_path)
+        return url_or_path
+
+    def make_result(self):
+        return _FakeResult()
+
+    async def send(self, chain):
+        items = getattr(chain, "chain", None) or list(chain or [])
+        self.sent.extend(items)
+
+
+class _FakeResult:
+    """够用的 MessageEventResult：收集组件，最后交给 FakeEvent.send。"""
+
+    def __init__(self):
+        self.chain = []
+
+    def message(self, text):
+        self.chain.append(("plain", text))
+        return self
+
+    def url_image(self, url):
+        self.chain.append(("image_url", url))
+        return self
+
+    def file_image(self, path):
+        self.chain.append(("image_file", path))
+        return self
 
 
 async def run_ba(plugin, message, umo="umo-test"):

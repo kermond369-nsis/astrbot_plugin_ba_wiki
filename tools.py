@@ -15,7 +15,8 @@ import asyncio
 import json
 
 from astrbot.api import llm_tool
-from astrbot.api.event import AstrMessageEvent
+from astrbot.api.event import AstrMessageEvent, MessageChain
+from astrbot.api.message_components import Image
 
 from . import directory, render, skills
 from .clients import arona, bilibili
@@ -483,3 +484,67 @@ class BAToolsMixin:
         res["student_name"] = name
         res["rendered"] = render.assist_page(res, arona.ASSIST_PAGE_SIZE)
         return json.dumps(res, ensure_ascii=False)
+
+    @llm_tool(name="query_ba_review_card")
+    async def query_ba_review_card(self, event: AstrMessageEvent, student: str) -> str:
+        """查《蔚蓝档案》角色的「测评卡」——一张把强度评级、就业场合、抽取建议放在一起的图。
+
+        当用户问「XX 值不值得抽」「XX 强不强」「XX 就业环境怎么样」「XX 泛用吗」
+        「抽 XX 还是等 XX」这类**要评价、要结论**的问题时调用。本工具会把卡片图片
+        直接发到当前会话，你只需要接着用一两句话点出结论。
+
+        **工具分工（重要）**：
+        - 具体数值 / 倍率 / 面板 → query_ba_skill、query_ba_stats。**不要**用本工具报数值。
+        - 配队手法 / 这期作业 / 一档怎么上 → search_ba_guide。
+        - 「值不值得抽」「强不强」「怎么就业」→ 本工具（发卡 + 你补一句）。
+        卡片只覆盖一部分角色；返回 ok=false 时如实说没有，**不要自己编强度结论**。
+
+        卡片来源：gamekee 碧蓝档案 wiki 的「角色评分」专栏（校委会攻略组制作），
+        按学园分篇，评分口径是日服环境，国服可当千里眼看。
+
+        Args:
+            student(string): 角色名，任意区服叫法/绰号/形态都行
+                （「康娜（泳装）」「水局」「星野泳装」「ワカモ」）。
+
+        Returns:
+            JSON。ok=true 表示卡片已经发出：`name` 是国服译名，`version` 是角评版本，
+            `attribution` 是必须转达的来源行，`url` 是原图地址，`hint` 说明接下来怎么说话。
+            ok=false 时给出 reason / suggest。
+        """
+        res = await self._review_card(student)
+        if not res.get("ok"):
+            return json.dumps({
+                "ok": False,
+                "reason": res.get("reason") or "查不到测评卡",
+                "name": res.get("name"),
+                "suggest": res.get("suggest") or [],
+                "hint": "如实告诉用户这个角色没有测评卡（可以给 suggest）；不要自己编强度 / 抽取结论。",
+            }, ensure_ascii=False)
+
+        url = res.get("image") or ""
+        path = res.get("image_path") or ""
+        sent = "failed"
+        error = ""
+        try:
+            comp = Image.fromFileSystem(path) if path else Image.fromURL(url)
+            await event.send(MessageChain([comp]))
+            sent = "ok"
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+
+        return json.dumps({
+            "ok": True,
+            "sent": sent,
+            "name": res.get("name"),
+            "raw_name": res.get("raw_name"),
+            "version": res.get("version"),
+            "article_title": res.get("article_title"),
+            "attribution": res.get("attribution"),
+            "url": url,
+            "error": error or None,
+            "hint": ("卡片已发出。用一两句话点出卡片上的关键结论（总力战/大决战评级、就业场合、"
+                     "抽取与培养建议），不要复述整张卡，也不要自己补充卡片以外的数值。"
+                     if sent == "ok" else
+                     "图片没发出去。把 attribution 和 url 一起给用户，让他自己点开看；"
+                     "不要凭空复述卡片内容。"),
+        }, ensure_ascii=False)
