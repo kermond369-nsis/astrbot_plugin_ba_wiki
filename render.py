@@ -332,8 +332,10 @@ def review_caption(res: dict) -> str:
     """卡片下面跟的那一行：角色名 + 角评版本 + 来源。"""
     name = res.get("name") or "这个角色"
     ver = res.get("version")
-    head = f"{name} 的测评卡" + (f"（角评 {ver:g} 版）" if isinstance(ver, (int, float)) else "")
-    lines = [head + f"：{res.get('attribution') or ''}".rstrip("：")]
+    head = f"{name} 的测评卡"
+    if isinstance(ver, (int, float)) and ver > 0:
+        head += f"（角评 {ver:.1f} 版）"
+    lines = [f"{head}：{res.get('attribution') or ''}".rstrip("：")]
     if res.get("remote"):
         lines.append("（本地缓存失败，先用原图链接顶着）")
     return "\n".join(lines)

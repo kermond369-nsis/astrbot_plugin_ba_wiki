@@ -63,7 +63,7 @@ _SKIP_NAME_RE = re.compile(
     r"^(超级长文|看前必读|食用说明|.{0,4}星(限定|常驻)|1&2星|全部角色|目录|前言|后记)|^[\s\u200b\uFEFF]*$"
 )
 _VERSION_RE = re.compile(r"角色评分\s*(?P<v>\d+(?:\.\d+)?)\s*版")
-ATTRIBUTION = "测评卡：gamekee 碧蓝档案 wiki · 校委会攻略组（ba.gamekee.com）"
+ATTRIBUTION = "gamekee 碧蓝档案 wiki · 校委会攻略组（ba.gamekee.com）"
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
@@ -477,7 +477,7 @@ def find(data_dir: str | None, keyword: str) -> dict:
         "article": card.get("article"),
         "article_title": card.get("article_title"),
         "version": card.get("version"),
-        "attribution": index.get("attribution") or ATTRIBUTION,
+        "attribution": ATTRIBUTION,
         "total": len(entries),
         "updated": index.get("updated"),
     }
